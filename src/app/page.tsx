@@ -21,8 +21,7 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<'deadline_asc' | 'deadline_desc' | 'prize_desc' | 'newest'>('deadline_asc');
   const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
 
-  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'HackTrackRadarBot';
-  const botUrl = `https://t.me/${botUsername}`;
+  const botUrl = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || 'https://t.me/MyHackthonAlert_bot';
 
   // Fetch live hackathon data directly from Supabase / API
   useEffect(() => {

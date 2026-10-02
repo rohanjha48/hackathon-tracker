@@ -247,7 +247,16 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
                   <li>Click <strong>Start</strong>. The bot replies with your numerical <code>Id</code>.</li>
                   <li>Copy and paste that number into the box above.</li>
                   <li>
-                    <em>(Optional)</em> Send <code>/start</code> to your bot first so it has permission to message you.
+                    <em>(Optional)</em> Send <code>/start</code> to{' '}
+                    <a
+                      href="https://t.me/MyHackthonAlert_bot"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-sky-400 font-bold underline inline-flex items-center gap-0.5"
+                    >
+                      @MyHackthonAlert_bot <ExternalLink size={11} />
+                    </a>{' '}
+                    first so it has permission to message you.
                   </li>
                 </ol>
               </div>

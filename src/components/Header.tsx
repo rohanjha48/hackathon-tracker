@@ -9,8 +9,7 @@ interface HeaderProps {
 }
 
 export const Header: React.FC<HeaderProps> = ({ onOpenSubscribe, totalPrizes }) => {
-  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'HackTrackRadarBot';
-  const botUrl = `https://t.me/${botUsername}`;
+  const botUrl = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || 'https://t.me/MyHackthonAlert_bot';
 
   return (
     <header className="sticky top-0 z-50 w-full backdrop-blur-xl bg-[#07080d]/85 border-b border-slate-800/80 transition-all">

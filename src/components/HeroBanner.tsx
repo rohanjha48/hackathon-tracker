@@ -13,8 +13,7 @@ export const HeroBanner: React.FC<HeroBannerProps> = ({
   onOpenSubscribe,
   urgentHackathon,
 }) => {
-  const botUsername = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'HackTrackRadarBot';
-  const botUrl = `https://t.me/${botUsername}`;
+  const botUrl = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || 'https://t.me/MyHackthonAlert_bot';
 
   return (
     <section className="relative w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-10 sm:pt-16 pb-8 sm:pb-12 text-center overflow-hidden">
