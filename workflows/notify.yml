@@ -1,0 +1,42 @@
+name: Daily Telegram Hackathon Notifier
+
+on:
+  schedule:
+    # Runs daily at 00:00 UTC (100% free under GitHub's 2,000 monthly Actions minutes)
+    - cron: '0 0 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub anytime
+
+concurrency:
+  group: notifier-cron
+  cancel-in-progress: true
+
+jobs:
+  check-and-notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 11.19.0
+
+      - name: Install Dependencies
+        run: pnpm install --prod --frozen-lockfile=false
+
+      - name: Run Telegram Notification Engine
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        run: node scripts/notify.js

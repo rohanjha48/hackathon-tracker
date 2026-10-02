@@ -1,0 +1,45 @@
+name: Scheduled Hackathon Scraper
+
+on:
+  schedule:
+    # Runs every 12 hours (100% free under GitHub's 2,000 monthly Actions minutes)
+    - cron: '0 */12 * * *'
+  workflow_dispatch: # Allows manual trigger from GitHub anytime
+
+concurrency:
+  group: scraper-cron
+  cancel-in-progress: true
+
+jobs:
+  scrape-and-sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 11.19.0
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile=false
+
+      - name: Install Chrome for Puppeteer
+        run: npx puppeteer browsers install chrome
+
+      - name: Execute Scraper Engine
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'false'
+        run: node scripts/scrape.js
