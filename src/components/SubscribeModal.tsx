@@ -11,6 +11,7 @@ import {
   Sparkles,
   ExternalLink,
   Loader2,
+  MapPin,
 } from 'lucide-react';
 import { POPULAR_TAGS } from '@/lib/mockData';
 
@@ -19,10 +20,16 @@ interface SubscribeModalProps {
   onClose: () => void;
 }
 
+const QUICK_CITIES = ['Bangalore', 'Delhi', 'Mumbai', 'Hyderabad', 'Pune', 'All Cities'];
+
 export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose }) => {
   const [chatId, setChatId] = useState('');
   const [username, setUsername] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['All']);
+  const [preferredCountry, setPreferredCountry] = useState('All');
+  const [preferredCity, setPreferredCity] = useState('All');
+  const [preferredMode, setPreferredMode] = useState<'both' | 'online' | 'in-person'>('both');
+  const [customCity, setCustomCity] = useState('');
   const [notifyDays, setNotifyDays] = useState<number[]>([7, 3, 1]);
   const [showHelper, setShowHelper] = useState(false);
 
@@ -59,6 +66,19 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
     }
   };
 
+  const handleCitySelect = (city: string) => {
+    if (city === 'All Cities') {
+      setPreferredCity('All');
+      setCustomCity('');
+    } else {
+      setPreferredCity(city);
+      setCustomCity(city);
+      if (['Bangalore', 'Delhi', 'Mumbai', 'Hyderabad', 'Pune'].includes(city)) {
+        setPreferredCountry('India');
+      }
+    }
+  };
+
   const handleTestPing = async () => {
     if (!chatId.trim()) {
       setStatusMessage({
@@ -72,12 +92,16 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
     setStatusMessage(null);
 
     try {
+      const effectiveCity = customCity.trim() || preferredCity;
       const res = await fetch('/api/telegram-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chatId: chatId.trim(),
           tags: selectedTags,
+          preferred_city: effectiveCity !== 'All' ? effectiveCity : undefined,
+          preferred_country: preferredCountry !== 'All' ? preferredCountry : undefined,
+          preferred_mode: preferredMode,
         }),
       });
 
@@ -117,6 +141,8 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
     setIsSubmitting(true);
     setStatusMessage(null);
 
+    const effectiveCity = customCity.trim() || preferredCity;
+
     try {
       const res = await fetch('/api/subscribe', {
         method: 'POST',
@@ -126,6 +152,9 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
           telegram_username: username.trim() || undefined,
           filter_tags: selectedTags,
           notify_days_before: notifyDays,
+          preferred_country: preferredCountry !== 'All' ? preferredCountry : undefined,
+          preferred_city: effectiveCity !== 'All' ? effectiveCity : undefined,
+          preferred_mode: preferredMode,
         }),
       });
 
@@ -133,7 +162,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
       if (data.success) {
         setStatusMessage({
           type: 'success',
-          text: '🎉 Congratulations! You are now subscribed to automated deadline alerts.',
+          text: '🎉 Congratulations! You are now subscribed to automated localized deadline alerts.',
         });
       } else {
         setStatusMessage({
@@ -170,7 +199,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
             </span>
             <div>
               <h2 className="text-base sm:text-lg font-bold text-white">Instant Telegram Alerts</h2>
-              <p className="text-xs text-slate-400">Automated Delivery • Zero Spam • Tailored to Your Tracks</p>
+              <p className="text-xs text-slate-400">Localized by City & Country • Zero Spam • Pure Signal</p>
             </div>
           </div>
           <button
@@ -247,7 +276,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
                   <li>Click <strong>Start</strong>. The bot replies with your numerical <code>Id</code>.</li>
                   <li>Copy and paste that number into the box above.</li>
                   <li>
-                    <em>(Optional)</em> Send <code>/start</code> to{' '}
+                    <em>(Important)</em> Send <code>/start</code> to{' '}
                     <a
                       href="https://t.me/MyHackthonAlert_bot"
                       target="_blank"
@@ -256,7 +285,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
                     >
                       @MyHackthonAlert_bot <ExternalLink size={11} />
                     </a>{' '}
-                    first so it has permission to message you.
+                    so it has permission to message you.
                   </li>
                 </ol>
               </div>
@@ -278,12 +307,92 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
             />
           </div>
 
+          {/* NEW: Preferred Location & City (Phase 3 Requirement) */}
+          <div className="p-3.5 bg-slate-950/60 rounded-xl border border-slate-800 space-y-3">
+            <div className="flex items-center gap-1.5 text-xs font-bold text-slate-200">
+              <MapPin size={14} className="text-purple-400" />
+              <span>Location Preferences (City & Country)</span>
+            </div>
+
+            {/* Mode Preference Toggle */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-semibold text-slate-400">Preferred Hackathon Format:</label>
+              <div className="grid grid-cols-3 gap-1.5 text-xs">
+                {(
+                  [
+                    { value: 'both', label: 'All / Both' },
+                    { value: 'online', label: 'Online Only' },
+                    { value: 'in-person', label: 'In-Person Only' },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    className={`py-1.5 px-2 rounded-lg font-medium transition-all text-center ${
+                      preferredMode === m.value
+                        ? 'bg-purple-600 text-white font-bold shadow-sm'
+                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-slate-200'
+                    }`}
+                    onClick={() => setPreferredMode(m.value)}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* City Selection: Quick Select Chips */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-semibold text-slate-400">Preferred City:</span>
+                <span className="text-[10px] text-emerald-400 font-medium">Focus on Major Indian Hubs</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_CITIES.map((c) => {
+                  const isSelected =
+                    (c === 'All Cities' && (preferredCity === 'All' || preferredCity === '')) ||
+                    preferredCity.toLowerCase() === c.toLowerCase();
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      id={`pref-city-chip-${c.toLowerCase().replace(/\s+/g, '-')}`}
+                      className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                        isSelected
+                          ? 'bg-emerald-600 text-white font-bold shadow-sm'
+                          : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700 hover:text-slate-200'
+                      }`}
+                      onClick={() => handleCitySelect(c)}
+                    >
+                      {c === 'Bangalore' ? 'Bangalore 🇮🇳' : c}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom City Input or Selected Display */}
+              <div className="mt-1">
+                <input
+                  type="text"
+                  id="preferred-city-input"
+                  className="w-full bg-slate-950 border border-slate-800 focus:border-purple-500 rounded-lg px-3 py-1.5 text-xs text-slate-100 placeholder-slate-500 focus:outline-none"
+                  placeholder="Or type custom city (e.g. Bangalore, San Francisco)..."
+                  value={customCity}
+                  onChange={(e) => {
+                    setCustomCity(e.target.value);
+                    setPreferredCity(e.target.value || 'All');
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Select Tracks / Tags */}
           <div className="flex flex-col gap-1.5">
             <label className="text-xs font-semibold text-slate-200">
               Filter Alert Topics (Select multiple or &apos;All&apos;):
             </label>
-            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 bg-slate-950/50 rounded-xl border border-slate-800/80">
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto p-1 bg-slate-950/50 rounded-xl border border-slate-800/80">
               {POPULAR_TAGS.map((tag) => {
                 const isActive = selectedTags.includes(tag);
                 return (
@@ -333,7 +442,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
                   checked={notifyDays.includes(1)}
                   onChange={() => toggleDay(1)}
                 />
-                <span>24 Hours (Final Call!)</span>
+                <span>24-48 Hours (Final Call!)</span>
               </label>
             </div>
           </div>
@@ -342,7 +451,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
           <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
             <button
               type="button"
-              className="px-4 py-2.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="px-4 py-2.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               onClick={handleTestPing}
               disabled={isTesting || !chatId.trim()}
               id="modal-test-ping-btn"
@@ -353,7 +462,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
 
             <button
               type="submit"
-              className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 transition-all flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               disabled={isSubmitting}
               id="modal-submit-subscribe-btn"
             >

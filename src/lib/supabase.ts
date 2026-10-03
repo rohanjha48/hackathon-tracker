@@ -1,6 +1,7 @@
 import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import { Hackathon, Subscriber, HackathonFilterOptions } from './types';
 import { MOCK_HACKATHONS } from './mockData';
+import { normalizeCity, normalizeMode } from './formatters';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -30,7 +31,7 @@ export const supabaseAdmin: SupabaseClient | null = (isSupabaseConfigured() && s
  * or return filtered mock data if Supabase is not yet configured.
  */
 export async function fetchHackathons(options: HackathonFilterOptions = {}): Promise<Hackathon[]> {
-  const { search, tag, location, sortBy } = options;
+  const { search, tag, location, mode, country, city, sortBy } = options;
 
   if (isSupabaseConfigured() && supabase) {
     try {
@@ -43,12 +44,38 @@ export async function fetchHackathons(options: HackathonFilterOptions = {}): Pro
         query = query.contains('tags', [tag]);
       }
 
-      if (location && location !== 'All') {
+      // Mode / Location filter
+      if (mode && mode !== 'both' && mode !== 'all') {
+        if (mode === 'online') {
+          query = query.or('mode.eq.online,location_type.eq.Online');
+        } else if (mode === 'in-person') {
+          query = query.or('mode.eq.in-person,location_type.eq.In-Person,mode.eq.hybrid');
+        }
+      } else if (location && location !== 'All') {
         query = query.eq('location_type', location);
       }
 
+      // Country filter
+      if (country && country !== 'All') {
+        if (country.toLowerCase() === 'global' || country.toLowerCase() === 'online') {
+          query = query.or('mode.eq.online,location_type.eq.Online,country.ilike.%global%');
+        } else {
+          query = query.ilike('country', `%${country}%`);
+        }
+      }
+
+      // City filter (e.g. Bangalore, Delhi)
+      if (city && city !== 'All') {
+        const normCity = normalizeCity(city);
+        if (normCity.toLowerCase() === 'bangalore') {
+          query = query.or('city.ilike.%bangalore%,city.ilike.%bengaluru%,location.ilike.%bangalore%,location.ilike.%bengaluru%');
+        } else {
+          query = query.or(`city.ilike.%${city}%,location.ilike.%${city}%`);
+        }
+      }
+
       if (search && search.trim() !== '') {
-        query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%`);
+        query = query.or(`title.ilike.%${search}%,description.ilike.%${search}%,city.ilike.%${search}%`);
       }
 
       // Sorting
@@ -79,19 +106,56 @@ export async function fetchHackathons(options: HackathonFilterOptions = {}): Pro
     results = results.filter((h) => h.tags.some((t) => t.toLowerCase() === tag.toLowerCase()));
   }
 
-  if (location && location !== 'All') {
+  // Filter by mode ('online', 'in-person', 'both'/'all')
+  if (mode && mode !== 'both' && mode !== 'all') {
+    if (mode === 'online') {
+      results = results.filter((h) => normalizeMode(h.mode || h.location_type) === 'online');
+    } else if (mode === 'in-person') {
+      results = results.filter((h) => {
+        const m = normalizeMode(h.mode || h.location_type);
+        return m === 'in-person' || m === 'hybrid';
+      });
+    }
+  } else if (location && location !== 'All') {
     results = results.filter((h) => h.location_type === location);
+  }
+
+  // Filter by country
+  if (country && country !== 'All') {
+    const cLower = country.toLowerCase();
+    results = results.filter((h) => {
+      if (cLower === 'global' || cLower === 'online') {
+        return normalizeMode(h.mode || h.location_type) === 'online' || (h.country || '').toLowerCase().includes('global');
+      }
+      return (h.country || '').toLowerCase().includes(cLower) || (h.location || '').toLowerCase().includes(cLower);
+    });
+  }
+
+  // Filter by city (special check for Bangalore / Bengaluru)
+  if (city && city !== 'All') {
+    const normCity = normalizeCity(city).toLowerCase();
+    results = results.filter((h) => {
+      const hCity = normalizeCity(h.city).toLowerCase();
+      const hLoc = (h.location || '').toLowerCase();
+      if (normCity === 'bangalore') {
+        return hCity.includes('bangalore') || hCity.includes('bengaluru') || hLoc.includes('bangalore') || hLoc.includes('bengaluru');
+      }
+      return hCity.includes(normCity) || hLoc.includes(normCity);
+    });
   }
 
   if (search && search.trim() !== '') {
     const term = search.toLowerCase();
     results = results.filter(
-      (h) => h.title.toLowerCase().includes(term) || h.description.toLowerCase().includes(term)
+      (h) =>
+        h.title.toLowerCase().includes(term) ||
+        h.description.toLowerCase().includes(term) ||
+        (h.city || '').toLowerCase().includes(term)
     );
   }
 
   if (sortBy === 'prize_desc') {
-    results.sort((a, b) => b.prize_pool - a.prize_pool);
+    results.sort((a, b) => (b.prize_amount || b.prize_pool) - (a.prize_amount || a.prize_pool));
   } else if (sortBy === 'deadline_desc') {
     results.sort(
       (a, b) => new Date(b.submission_deadline).getTime() - new Date(a.submission_deadline).getTime()
@@ -130,6 +194,9 @@ export async function upsertSubscriber(subscriber: Subscriber): Promise<{ succes
         telegram_chat_id: subscriber.telegram_chat_id,
         username: subscriber.telegram_username || null,
         filter_tags: subscriber.filter_tags,
+        preferred_country: subscriber.preferred_country || null,
+        preferred_city: subscriber.preferred_city || null,
+        preferred_mode: subscriber.preferred_mode || 'both',
         is_active: true,
         updated_at: new Date().toISOString(),
       },

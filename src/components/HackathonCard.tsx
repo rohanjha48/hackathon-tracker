@@ -1,49 +1,52 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, Calendar, MapPin, Bookmark, Sparkles, Clock } from 'lucide-react';
+import { ExternalLink, Calendar, MapPin, Bookmark, Sparkles, Clock, Globe } from 'lucide-react';
 import { Hackathon } from '@/lib/types';
+import { formatPrizeAmount, formatModeWithLocation } from '@/lib/formatters';
 
 interface HackathonCardProps {
   hackathon: Hackathon;
 }
 
-export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
-  const [isBookmarked, setIsBookmarked] = useState(false);
-  const [timeRemaining, setTimeRemaining] = useState<{
-    text: string;
-    isUrgent: boolean;
-  }>({ text: '', isUrgent: false });
+function calcTimeRemaining(targetIso: string) {
+  const target = new Date(targetIso).getTime();
+  const diff = target - Date.now();
 
+  if (diff <= 0) {
+    return { text: 'Registration Closed', isUrgent: false };
+  }
+
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  const days = Math.floor(hours / 24);
+
+  if (hours < 48) {
+    return { text: `🚨 ${hours}h left! (< 48h)`, isUrgent: true };
+  }
+  return { text: `⏰ ${days} days remaining`, isUrgent: false };
+}
+
+export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
   const deadlineDate = hackathon.registration_end || hackathon.submission_deadline;
 
+  const [isBookmarked, setIsBookmarked] = useState(false);
+  const [timeRemaining, setTimeRemaining] = useState(() => calcTimeRemaining(deadlineDate));
+
   useEffect(() => {
-    const calc = () => {
-      const now = Date.now();
-      const target = new Date(deadlineDate).getTime();
-      const diff = target - now;
-
-      if (diff <= 0) {
-        return { text: 'Registration Closed', isUrgent: false };
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const days = Math.floor(hours / 24);
-
-      if (hours < 48) {
-        return { text: `🚨 ${hours}h left! (< 48h)`, isUrgent: true };
-      }
-      return { text: `⏰ ${days} days remaining`, isUrgent: false };
-    };
-
-    setTimeRemaining(calc());
+    const timer = setInterval(() => {
+      setTimeRemaining(calcTimeRemaining(deadlineDate));
+    }, 60000);
+    return () => clearInterval(timer);
   }, [deadlineDate]);
 
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem(`hacktrack_saved_${hackathon.slug}`);
-      if (saved) setIsBookmarked(true);
-    } catch {}
+    const frame = requestAnimationFrame(() => {
+      try {
+        const saved = localStorage.getItem(`hacktrack_saved_${hackathon.slug}`);
+        if (saved) setIsBookmarked(true);
+      } catch {}
+    });
+    return () => cancelAnimationFrame(frame);
   }, [hackathon.slug]);
 
   const toggleBookmark = (e: React.MouseEvent) => {
@@ -66,6 +69,20 @@ export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
     year: 'numeric',
   });
 
+  // Localized prize & currency formatting
+  const rawPrize = hackathon.prize_amount ?? hackathon.prize_pool ?? 0;
+  const currencyCode = (hackathon.prize_currency || hackathon.currency || 'USD').toUpperCase();
+  const formattedPrize = formatPrizeAmount(rawPrize, currencyCode);
+
+  // Localized mode & location info
+  const modeInfo = formatModeWithLocation({
+    mode: hackathon.mode,
+    location_type: hackathon.location_type,
+    city: hackathon.city,
+    country: hackathon.country,
+    location: hackathon.location,
+  });
+
   return (
     <article className="group relative flex flex-col bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 hover:border-purple-500/50 rounded-2xl overflow-hidden backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-purple-500/10">
       {/* Banner Image & Badges */}
@@ -81,10 +98,21 @@ export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
 
-        {/* Source Badge */}
-        <span className="absolute top-3 left-3 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 rounded-md backdrop-blur-md">
-          {hackathon.source}
-        </span>
+        {/* Top Badges: Platform + Mode Tag */}
+        <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
+          <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 rounded-md backdrop-blur-md">
+            {hackathon.source}
+          </span>
+          <span
+            className={`px-2 py-0.5 text-[10px] font-bold rounded-md backdrop-blur-md border ${
+              modeInfo.isOnline
+                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/30'
+                : 'bg-indigo-950/80 text-indigo-300 border-indigo-500/30'
+            }`}
+          >
+            {modeInfo.isOnline ? 'Online' : 'In-Person'}
+          </span>
+        </div>
 
         {/* Bookmark Button */}
         <button
@@ -115,14 +143,20 @@ export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
 
       {/* Card Content Body */}
       <div className="p-5 flex flex-col flex-1">
-        {/* Location & Track */}
+        {/* Location & Featured Badge */}
         <div className="flex items-center justify-between text-xs text-slate-400 mb-2.5">
           <span className="flex items-center gap-1.5 truncate">
-            <MapPin size={13} className="text-slate-500 flex-shrink-0" />
-            <span className="truncate">{hackathon.location || hackathon.location_type || 'Online'}</span>
+            {modeInfo.isOnline ? (
+              <Globe size={13} className="text-emerald-400 flex-shrink-0" />
+            ) : (
+              <MapPin size={13} className="text-rose-400 flex-shrink-0" />
+            )}
+            <span className="truncate font-medium text-slate-300">
+              {modeInfo.label}
+            </span>
           </span>
           {hackathon.is_featured && (
-            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20">
+            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20 flex-shrink-0">
               <Sparkles size={10} />
               Featured
             </span>
@@ -158,17 +192,22 @@ export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
           )}
         </div>
 
-        {/* Footer: Prize & CTA */}
+        {/* Footer: Dynamic Currency Prize Pool & CTA */}
         <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-3">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
               Prize Pool
             </span>
-            <span className="text-base font-extrabold text-emerald-400">
-              {hackathon.prize_pool > 0
-                ? `$${hackathon.prize_pool.toLocaleString()} ${hackathon.currency || 'USD'}`
-                : 'Swag & Certificates'}
-            </span>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-base font-extrabold text-emerald-400">
+                {formattedPrize}
+              </span>
+              {rawPrize > 0 && (
+                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                  {currencyCode}
+                </span>
+              )}
+            </div>
           </div>
 
           <a

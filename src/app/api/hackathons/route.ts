@@ -10,12 +10,18 @@ export async function GET(request: NextRequest) {
     const search = searchParams.get('search') || undefined;
     const tag = searchParams.get('tag') || undefined;
     const location = (searchParams.get('location') as LocationType | 'All') || undefined;
+    const mode = (searchParams.get('mode') as 'both' | 'online' | 'in-person' | 'all') || undefined;
+    const country = searchParams.get('country') || undefined;
+    const city = searchParams.get('city') || undefined;
     const sortBy = (searchParams.get('sortBy') as 'deadline_asc' | 'deadline_desc' | 'prize_desc' | 'newest') || undefined;
 
     const hackathons = await fetchHackathons({
       search,
       tag,
       location,
+      mode,
+      country,
+      city,
       sortBy,
     });
 

@@ -7,7 +7,15 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { telegram_chat_id, telegram_username, filter_tags, notify_days_before } = body;
+    const {
+      telegram_chat_id,
+      telegram_username,
+      filter_tags,
+      notify_days_before,
+      preferred_country,
+      preferred_city,
+      preferred_mode,
+    } = body;
 
     if (!telegram_chat_id || String(telegram_chat_id).trim() === '') {
       return NextResponse.json(
@@ -20,6 +28,9 @@ export async function POST(request: NextRequest) {
       telegram_chat_id: String(telegram_chat_id).trim(),
       telegram_username: telegram_username ? String(telegram_username).trim().replace(/^@/, '') : undefined,
       filter_tags: Array.isArray(filter_tags) ? filter_tags : [],
+      preferred_country: preferred_country ? String(preferred_country).trim() : undefined,
+      preferred_city: preferred_city ? String(preferred_city).trim() : undefined,
+      preferred_mode: preferred_mode ? String(preferred_mode).trim() : 'both',
       notify_days_before: Array.isArray(notify_days_before) && notify_days_before.length > 0
         ? notify_days_before
         : [7, 3, 1],

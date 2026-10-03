@@ -4,12 +4,13 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { Header } from '@/components/Header';
 import { HeroBanner } from '@/components/HeroBanner';
 import { StatsBar } from '@/components/StatsBar';
-import { FilterBar } from '@/components/FilterBar';
+import { FilterBar, ModeFilter } from '@/components/FilterBar';
 import { HackathonCard } from '@/components/HackathonCard';
 import { HowItWorks } from '@/components/HowItWorks';
 import { SubscribeModal } from '@/components/SubscribeModal';
-import { Hackathon, LocationType } from '@/lib/types';
+import { Hackathon } from '@/lib/types';
 import { MOCK_HACKATHONS } from '@/lib/mockData';
+import { normalizeMode } from '@/lib/formatters';
 import { Zap, Bell, ExternalLink, RefreshCw } from 'lucide-react';
 
 export default function Home() {
@@ -17,13 +18,15 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState('All');
-  const [selectedLocation, setSelectedLocation] = useState<LocationType | 'All'>('All');
+  const [selectedMode, setSelectedMode] = useState<ModeFilter>('both');
+  const [selectedCountry, setSelectedCountry] = useState('All');
+  const [selectedCity, setSelectedCity] = useState('All');
   const [sortBy, setSortBy] = useState<'deadline_asc' | 'deadline_desc' | 'prize_desc' | 'newest'>('deadline_asc');
   const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
 
   const botUrl = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || 'https://t.me/MyHackthonAlert_bot';
 
-  // Fetch live hackathon data directly from Supabase / API
+  // Fetch live hackathon data directly from Supabase / API with localization parameters
   useEffect(() => {
     let isCancelled = false;
 
@@ -33,7 +36,9 @@ export default function Home() {
         const params = new URLSearchParams();
         if (search) params.set('search', search);
         if (selectedTag && selectedTag !== 'All') params.set('tag', selectedTag);
-        if (selectedLocation && selectedLocation !== 'All') params.set('location', selectedLocation);
+        if (selectedMode && selectedMode !== 'both') params.set('mode', selectedMode);
+        if (selectedCountry && selectedCountry !== 'All') params.set('country', selectedCountry);
+        if (selectedCity && selectedCity !== 'All') params.set('city', selectedCity);
         if (sortBy) params.set('sortBy', sortBy);
 
         const res = await fetch(`/api/hackathons?${params.toString()}`);
@@ -50,32 +55,34 @@ export default function Home() {
       }
     }
 
-    const timer = setTimeout(loadData, 200);
+    const timer = setTimeout(loadData, 150);
     return () => {
       isCancelled = true;
       clearTimeout(timer);
     };
-  }, [search, selectedTag, selectedLocation, sortBy]);
+  }, [search, selectedTag, selectedMode, selectedCountry, selectedCity, sortBy]);
 
   // Compute live statistics
   const { totalPrizes, onlineCount, urgentHackathon } = useMemo(() => {
-    const total = hackathons.reduce((acc, h) => acc + (Number(h.prize_pool) || 0), 0);
-    const online = hackathons.filter((h) => h.location_type === 'Online').length;
+    const total = hackathons.reduce(
+      (acc, h) => acc + (Number(h.prize_amount ?? h.prize_pool) || 0),
+      0
+    );
+    const online = hackathons.filter(
+      (h) => normalizeMode(h.mode || h.location_type) === 'online'
+    ).length;
 
-    // Filter hackathons approaching deadline
-    const now = Date.now();
-    const sortedUpcoming = [...hackathons]
-      .filter((h) => new Date(h.registration_end || h.submission_deadline).getTime() > now)
-      .sort((a, b) => {
-        const tA = new Date(a.registration_end || a.submission_deadline).getTime();
-        const tB = new Date(b.registration_end || b.submission_deadline).getTime();
-        return tA - tB;
-      });
+    // Pick earliest deadline
+    const sorted = [...hackathons].sort((a, b) => {
+      const tA = new Date(a.registration_end || a.submission_deadline).getTime();
+      const tB = new Date(b.registration_end || b.submission_deadline).getTime();
+      return tA - tB;
+    });
 
     return {
       totalPrizes: total,
       onlineCount: online,
-      urgentHackathon: sortedUpcoming[0] || hackathons[0],
+      urgentHackathon: sorted[0] || hackathons[0],
     };
   }, [hackathons]);
 
@@ -102,14 +109,18 @@ export default function Home() {
           onlineCount={onlineCount}
         />
 
-        {/* Search, Filter & Sort Controls */}
+        {/* Search, Filter & Sort Controls with Country & City Dropdowns and Mode Toggle */}
         <FilterBar
           search={search}
           onSearchChange={setSearch}
           selectedTag={selectedTag}
           onTagSelect={setSelectedTag}
-          selectedLocation={selectedLocation}
-          onLocationSelect={setSelectedLocation}
+          selectedMode={selectedMode}
+          onModeSelect={setSelectedMode}
+          selectedCountry={selectedCountry}
+          onCountrySelect={setSelectedCountry}
+          selectedCity={selectedCity}
+          onCitySelect={setSelectedCity}
           sortBy={sortBy}
           onSortChange={setSortBy}
           resultsCount={hackathons.length}
@@ -126,7 +137,7 @@ export default function Home() {
                 </span>
               </h2>
               <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Aggregated from Devpost & Unstop • Automated reminder alerts at 48 hours to deadline
+                Aggregated from Devpost & Unstop • Filtered by Bangalore, India & Worldwide Hubs • Automated 48h alerts
               </p>
             </div>
 
@@ -167,16 +178,18 @@ export default function Home() {
             <div className="text-center py-16 sm:py-20 px-4 bg-slate-900/30 border border-dashed border-slate-800 rounded-3xl w-full">
               <h3 className="text-base sm:text-lg font-bold text-white mb-2">No Hackathons Match Your Query</h3>
               <p className="text-xs sm:text-sm text-slate-400 mb-6">
-                Try changing your search keywords or switching tags to view other events.
+                Try clearing your city filter or switching mode to view other events.
               </p>
               <button
                 type="button"
                 onClick={() => {
                   setSearch('');
                   setSelectedTag('All');
-                  setSelectedLocation('All');
+                  setSelectedMode('both');
+                  setSelectedCountry('All');
+                  setSelectedCity('All');
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 rounded-xl transition-all"
+                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 rounded-xl transition-all cursor-pointer"
               >
                 <RefreshCw size={14} />
                 <span>Reset All Filters</span>
@@ -218,7 +231,7 @@ export default function Home() {
           </div>
 
           <div className="border-t border-slate-800/50 pt-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 text-[11px]">
-            <span>Automated collegiate hackathon tracker and notification system.</span>
+            <span>Automated collegiate hackathon tracker and notification system with location & currency localization.</span>
             <span>Built for students worldwide</span>
           </div>
         </div>
