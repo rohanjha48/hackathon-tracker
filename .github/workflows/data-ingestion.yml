@@ -1,4 +1,4 @@
-name: Data Scraper
+name: Fetch Hackathon Data
 
 on:
   schedule:
