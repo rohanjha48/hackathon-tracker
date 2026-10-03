@@ -120,14 +120,31 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 ---
 
 ## 🗄️ Setting up Supabase Database
-
+ 
 1. Create a free project at [supabase.com](https://supabase.com).
 2. Open the **SQL Editor** tab in the Supabase dashboard.
-3. Paste the contents of `supabase/migrations/20261003000000_init_schema.sql` and click **Run**.
-4. Seed initial events:
+3. Apply the initial schema and the localization migration:
+   - Initial schema: `supabase/migrations/20261003000000_init_schema.sql`
+   - Location & Currency Localization: `supabase/migrations/20261003010000_location_and_currency_localization.sql`
+     *(Adds `mode`, `country`, `state`, `city`, `prize_currency`, `prize_amount` to `hackathons`, and `preferred_country`, `preferred_city`, `preferred_mode` to `users`)*
+4. Seed initial localized events (Bangalore, India INR & Global USD):
    ```bash
    node scripts/seed.js
    ```
+
+---
+
+## 🌍 Location and Currency Localization Features
+
+- **Geographic Filtering**: Filter hackathons by Country (e.g., India, USA) and City (especially focusing on major Indian tech hubs like **Bangalore**, **Delhi**, **Mumbai**, **Hyderabad**, and **Pune**).
+- **Format Toggle**: Toggle between **'Online'**, **'In-Person'**, or **'Both'**.
+- **Dynamic Currency Formatter**: Hackathon cards dynamically format prizes:
+  - **INR (₹)**: Formats using the Indian numbering system (`₹10,00,000` / `₹1,00,000`).
+  - **USD ($)**: Formats using Western numbering (`$50,000` / `$10,000`).
+- **Personalized Telegram Alerts**: When subscribing to Telegram alerts, users can choose their `preferred_city` (e.g. Bangalore) and `preferred_mode` (Online only, In-person only, or Both).
+- **Explicit Telegram Alert Format**:
+  - `📍 Mode: In-Person, Bangalore (India)` or `🌐 Mode: Online`
+  - Localized prize money (e.g. `💰 Prize Pool: ₹10,00,000 INR` or `$50,000 USD`)
 
 ---
 

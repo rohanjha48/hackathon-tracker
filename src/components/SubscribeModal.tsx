@@ -8,9 +8,9 @@ import {
   AlertCircle,
   HelpCircle,
   Bell,
-  Sparkles,
   ExternalLink,
   Loader2,
+  MapPin,
 } from 'lucide-react';
 import { POPULAR_TAGS } from '@/lib/mockData';
 
@@ -19,10 +19,16 @@ interface SubscribeModalProps {
   onClose: () => void;
 }
 
+const QUICK_CITIES = ['Bangalore', 'Delhi', 'Mumbai', 'Hyderabad', 'Pune', 'All Cities'];
+
 export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose }) => {
   const [chatId, setChatId] = useState('');
   const [username, setUsername] = useState('');
   const [selectedTags, setSelectedTags] = useState<string[]>(['All']);
+  const [preferredCountry, setPreferredCountry] = useState('All');
+  const [preferredCity, setPreferredCity] = useState('All');
+  const [preferredMode, setPreferredMode] = useState<'both' | 'online' | 'in-person'>('both');
+  const [customCity, setCustomCity] = useState('');
   const [notifyDays, setNotifyDays] = useState<number[]>([7, 3, 1]);
   const [showHelper, setShowHelper] = useState(false);
 
@@ -59,6 +65,19 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
     }
   };
 
+  const handleCitySelect = (city: string) => {
+    if (city === 'All Cities') {
+      setPreferredCity('All');
+      setCustomCity('');
+    } else {
+      setPreferredCity(city);
+      setCustomCity(city);
+      if (['Bangalore', 'Delhi', 'Mumbai', 'Hyderabad', 'Pune'].includes(city)) {
+        setPreferredCountry('India');
+      }
+    }
+  };
+
   const handleTestPing = async () => {
     if (!chatId.trim()) {
       setStatusMessage({
@@ -72,12 +91,16 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
     setStatusMessage(null);
 
     try {
+      const effectiveCity = customCity.trim() || preferredCity;
       const res = await fetch('/api/telegram-test', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           chatId: chatId.trim(),
           tags: selectedTags,
+          preferred_city: effectiveCity !== 'All' ? effectiveCity : undefined,
+          preferred_country: preferredCountry !== 'All' ? preferredCountry : undefined,
+          preferred_mode: preferredMode,
         }),
       });
 
@@ -85,7 +108,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
       if (data.success) {
         setStatusMessage({
           type: 'success',
-          text: '✅ Test notification sent! Check your Telegram app.',
+          text: 'Test notification sent! Check your Telegram app.',
         });
       } else {
         setStatusMessage({
@@ -117,6 +140,8 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
     setIsSubmitting(true);
     setStatusMessage(null);
 
+    const effectiveCity = customCity.trim() || preferredCity;
+
     try {
       const res = await fetch('/api/subscribe', {
         method: 'POST',
@@ -126,6 +151,9 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
           telegram_username: username.trim() || undefined,
           filter_tags: selectedTags,
           notify_days_before: notifyDays,
+          preferred_country: preferredCountry !== 'All' ? preferredCountry : undefined,
+          preferred_city: effectiveCity !== 'All' ? effectiveCity : undefined,
+          preferred_mode: preferredMode,
         }),
       });
 
@@ -133,7 +161,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
       if (data.success) {
         setStatusMessage({
           type: 'success',
-          text: '🎉 Congratulations! You are now subscribed to automated deadline alerts.',
+          text: 'Subscription active! You will receive automated deadline alerts on Telegram.',
         });
       } else {
         setStatusMessage({
@@ -153,67 +181,67 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
+      className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto"
       onClick={onClose}
       role="dialog"
       aria-modal="true"
     >
       <div
-        className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full max-h-[92vh] overflow-y-auto shadow-2xl shadow-purple-950/20 p-5 sm:p-6 relative flex flex-col my-auto"
+        className="bg-zinc-900 border border-zinc-800 rounded-xl max-w-lg w-full max-h-[92vh] overflow-y-auto p-5 sm:p-6 relative flex flex-col my-auto"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-800">
+        <div className="flex items-center justify-between pb-3.5 border-b border-zinc-800">
           <div className="flex items-center gap-3">
-            <span className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 to-cyan-500 flex items-center justify-center text-white shadow-lg shadow-purple-500/25 flex-shrink-0">
-              <Bell size={20} />
+            <span className="w-8 h-8 rounded-lg bg-zinc-800 border border-zinc-700 flex items-center justify-center text-zinc-100 flex-shrink-0">
+              <Bell size={16} />
             </span>
             <div>
-              <h2 className="text-base sm:text-lg font-bold text-white">Instant Telegram Alerts</h2>
-              <p className="text-xs text-slate-400">Automated Delivery • Zero Spam • Tailored to Your Tracks</p>
+              <h2 className="text-base font-bold text-zinc-100">Telegram Alert Preferences</h2>
+              <p className="text-xs text-zinc-400">Filter by Track, Format, and Major Cities</p>
             </div>
           </div>
           <button
             type="button"
-            className="text-slate-400 hover:text-white p-1.5 rounded-lg hover:bg-slate-800 transition-colors"
+            className="text-zinc-400 hover:text-white p-1 rounded-md hover:bg-zinc-800 transition-colors cursor-pointer"
             onClick={onClose}
             aria-label="Close modal"
           >
-            <X size={18} />
+            <X size={16} />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="flex flex-col gap-4 pt-4">
+        <form onSubmit={handleSubmit} className="flex flex-col gap-3.5 pt-3.5">
           {/* Status Alert Banner */}
           {statusMessage && (
             <div
-              className={`p-3 rounded-xl text-xs sm:text-sm font-medium flex items-center gap-2 border ${
+              className={`p-3 rounded-lg text-xs font-medium flex items-center gap-2 border ${
                 statusMessage.type === 'success'
-                  ? 'bg-emerald-500/10 text-emerald-300 border-emerald-500/25'
-                  : 'bg-rose-500/10 text-rose-300 border-rose-500/25'
+                  ? 'bg-zinc-800 text-zinc-200 border-zinc-700'
+                  : 'bg-zinc-900 text-zinc-300 border-zinc-700'
               }`}
             >
               {statusMessage.type === 'success' ? (
-                <CheckCircle2 size={16} className="flex-shrink-0" />
+                <CheckCircle2 size={15} className="flex-shrink-0 text-zinc-300" />
               ) : (
-                <AlertCircle size={16} className="flex-shrink-0" />
+                <AlertCircle size={15} className="flex-shrink-0 text-zinc-400" />
               )}
               <span>{statusMessage.text}</span>
             </div>
           )}
 
           {/* Telegram Chat ID Field with helper */}
-          <div className="flex flex-col gap-1.5">
+          <div className="flex flex-col gap-1">
             <div className="flex items-center justify-between text-xs">
-              <label htmlFor="telegram-chat-id" className="font-semibold text-slate-200">
-                Telegram Chat ID <span className="text-rose-400">*</span>
+              <label htmlFor="telegram-chat-id" className="font-medium text-zinc-200">
+                Telegram Chat ID <span className="text-zinc-400">*</span>
               </label>
               <button
                 type="button"
-                className="text-sky-400 hover:text-sky-300 font-semibold inline-flex items-center gap-1"
+                className="text-zinc-400 hover:text-zinc-200 font-medium inline-flex items-center gap-1 cursor-pointer"
                 onClick={() => setShowHelper(!showHelper)}
               >
-                <HelpCircle size={13} />
+                <HelpCircle size={12} />
                 <span>How to find Chat ID?</span>
               </button>
             </div>
@@ -221,7 +249,7 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
             <input
               type="text"
               id="telegram-chat-id"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-purple-500 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+              className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-600 rounded-lg px-3 py-2 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors"
               placeholder="e.g. 1092837465"
               value={chatId}
               onChange={(e) => setChatId(e.target.value)}
@@ -230,33 +258,33 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
 
             {/* Quick Helper Box */}
             {showHelper && (
-              <div className="bg-sky-500/10 border border-sky-500/20 rounded-xl p-3.5 text-xs text-sky-200 mt-1">
-                <h4 className="font-bold text-sky-300 mb-2">How to get your Telegram Chat ID in 10 seconds:</h4>
-                <ol className="list-decimal pl-4 space-y-1 text-slate-300">
+              <div className="bg-zinc-950 border border-zinc-800 rounded-lg p-3 text-xs text-zinc-300 mt-1">
+                <h4 className="font-semibold text-zinc-200 mb-1.5">How to get your Telegram Chat ID in 10 seconds:</h4>
+                <ol className="list-decimal pl-4 space-y-1 text-zinc-400">
                   <li>
                     Open Telegram and message{' '}
                     <a
                       href="https://t.me/userinfobot"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sky-400 font-bold underline inline-flex items-center gap-0.5"
+                      className="text-zinc-200 font-medium underline inline-flex items-center gap-0.5"
                     >
-                      @userinfobot <ExternalLink size={11} />
+                      @userinfobot <ExternalLink size={10} />
                     </a>
                   </li>
                   <li>Click <strong>Start</strong>. The bot replies with your numerical <code>Id</code>.</li>
-                  <li>Copy and paste that number into the box above.</li>
+                  <li>Paste that number into the box above.</li>
                   <li>
-                    <em>(Optional)</em> Send <code>/start</code> to{' '}
+                    Send <code>/start</code> to{' '}
                     <a
                       href="https://t.me/MyHackthonAlert_bot"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-sky-400 font-bold underline inline-flex items-center gap-0.5"
+                      className="text-zinc-200 font-medium underline inline-flex items-center gap-0.5"
                     >
-                      @MyHackthonAlert_bot <ExternalLink size={11} />
+                      @MyHackthonAlert_bot <ExternalLink size={10} />
                     </a>{' '}
-                    first so it has permission to message you.
+                    so it has permission to message you.
                   </li>
                 </ol>
               </div>
@@ -264,36 +292,116 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
           </div>
 
           {/* Username Field */}
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="telegram-username" className="text-xs font-semibold text-slate-200">
+          <div className="flex flex-col gap-1">
+            <label htmlFor="telegram-username" className="text-xs font-medium text-zinc-300">
               Telegram Handle (Optional)
             </label>
             <input
               type="text"
               id="telegram-username"
-              className="w-full bg-slate-950 border border-slate-800 focus:border-purple-500 rounded-xl px-3.5 py-2.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+              className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-600 rounded-lg px-3 py-2 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors"
               placeholder="@yourhandle"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
             />
           </div>
 
+          {/* Location Preferences */}
+          <div className="p-3 bg-zinc-950 rounded-lg border border-zinc-800 space-y-2.5">
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-zinc-200">
+              <MapPin size={13} className="text-zinc-400" />
+              <span>Location Preferences</span>
+            </div>
+
+            {/* Mode Preference Toggle */}
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium text-zinc-400">Format:</label>
+              <div className="grid grid-cols-3 gap-1.5 text-xs">
+                {(
+                  [
+                    { value: 'both', label: 'All / Both' },
+                    { value: 'online', label: 'Online Only' },
+                    { value: 'in-person', label: 'In-Person Only' },
+                  ] as const
+                ).map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    className={`py-1 px-2 rounded-md font-medium transition-colors text-center cursor-pointer ${
+                      preferredMode === m.value
+                        ? 'bg-zinc-100 text-zinc-950 font-semibold'
+                        : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:text-zinc-200'
+                    }`}
+                    onClick={() => setPreferredMode(m.value)}
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* City Selection: Quick Select Chips */}
+            <div className="flex flex-col gap-1">
+              <div className="flex items-center justify-between text-[11px]">
+                <span className="font-medium text-zinc-400">Preferred City:</span>
+                <span className="text-[10px] text-zinc-500">Bangalore, Delhi, etc.</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                {QUICK_CITIES.map((c) => {
+                  const isSelected =
+                    (c === 'All Cities' && (preferredCity === 'All' || preferredCity === '')) ||
+                    preferredCity.toLowerCase() === c.toLowerCase();
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      id={`pref-city-chip-${c.toLowerCase().replace(/\s+/g, '-')}`}
+                      className={`px-2.5 py-0.5 rounded-md text-xs font-medium transition-colors cursor-pointer ${
+                        isSelected
+                          ? 'bg-zinc-100 text-zinc-950 font-semibold'
+                          : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-200'
+                      }`}
+                      onClick={() => handleCitySelect(c)}
+                    >
+                      {c === 'Bangalore' ? 'Bangalore' : c}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Custom City Input */}
+              <div className="mt-1">
+                <input
+                  type="text"
+                  id="preferred-city-input"
+                  className="w-full bg-zinc-900 border border-zinc-800 focus:border-zinc-600 rounded-md px-2.5 py-1 text-xs text-zinc-100 placeholder-zinc-500 focus:outline-none"
+                  placeholder="Or type custom city (e.g. Bangalore)..."
+                  value={customCity}
+                  onChange={(e) => {
+                    setCustomCity(e.target.value);
+                    setPreferredCity(e.target.value || 'All');
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Select Tracks / Tags */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-200">
-              Filter Alert Topics (Select multiple or &apos;All&apos;):
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-300">
+              Filter Topics:
             </label>
-            <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-1 bg-slate-950/50 rounded-xl border border-slate-800/80">
+            <div className="flex flex-wrap gap-1 max-h-20 overflow-y-auto p-1 bg-zinc-950 rounded-lg border border-zinc-800">
               {POPULAR_TAGS.map((tag) => {
                 const isActive = selectedTags.includes(tag);
                 return (
                   <button
                     key={tag}
                     type="button"
-                    className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${
+                    className={`px-2 py-0.5 rounded text-xs font-medium transition-colors cursor-pointer ${
                       isActive
-                        ? 'bg-purple-600 text-white shadow-sm'
-                        : 'bg-slate-900 text-slate-400 border border-slate-800 hover:border-slate-700 hover:text-slate-200'
+                        ? 'bg-zinc-100 text-zinc-950 font-semibold'
+                        : 'bg-zinc-900 text-zinc-400 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-200'
                     }`}
                     onClick={() => toggleTag(tag)}
                   >
@@ -305,63 +413,59 @@ export const SubscribeModal: React.FC<SubscribeModalProps> = ({ isOpen, onClose 
           </div>
 
           {/* Alert Frequency Windows */}
-          <div className="flex flex-col gap-1.5">
-            <label className="text-xs font-semibold text-slate-200">Alert Countdown Windows:</label>
-            <div className="flex flex-wrap gap-4 text-xs text-slate-300">
-              <label className="flex items-center gap-2 cursor-pointer">
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-zinc-300">Countdown Windows:</label>
+            <div className="flex flex-wrap gap-3.5 text-xs text-zinc-400">
+              <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="rounded border-slate-700 bg-slate-950 text-purple-600 focus:ring-purple-500"
+                  className="rounded border-zinc-700 bg-zinc-950 text-zinc-100 accent-zinc-100"
                   checked={notifyDays.includes(7)}
                   onChange={() => toggleDay(7)}
                 />
-                <span>7 Days Before</span>
+                <span>7 Days</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="rounded border-slate-700 bg-slate-950 text-purple-600 focus:ring-purple-500"
+                  className="rounded border-zinc-700 bg-zinc-950 text-zinc-100 accent-zinc-100"
                   checked={notifyDays.includes(3)}
                   onChange={() => toggleDay(3)}
                 />
-                <span>3 Days Before</span>
+                <span>3 Days</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
                   type="checkbox"
-                  className="rounded border-slate-700 bg-slate-950 text-purple-600 focus:ring-purple-500"
+                  className="rounded border-zinc-700 bg-zinc-950 text-zinc-100 accent-zinc-100"
                   checked={notifyDays.includes(1)}
                   onChange={() => toggleDay(1)}
                 />
-                <span>24 Hours (Final Call!)</span>
+                <span>24-48 Hours</span>
               </label>
             </div>
           </div>
 
           {/* Test & Submit Actions */}
-          <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-800">
+          <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-zinc-800">
             <button
               type="button"
-              className="px-4 py-2.5 text-xs font-semibold text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="px-3.5 py-1.5 text-xs font-medium text-zinc-300 bg-zinc-800 hover:bg-zinc-700 rounded-lg transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               onClick={handleTestPing}
               disabled={isTesting || !chatId.trim()}
               id="modal-test-ping-btn"
             >
-              {isTesting ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+              {isTesting ? <Loader2 size={13} className="animate-spin" /> : <Send size={13} />}
               <span>Test Bot Ping</span>
             </button>
 
             <button
               type="submit"
-              className="px-5 py-2.5 text-xs font-bold text-white bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 rounded-xl shadow-lg shadow-purple-600/30 hover:shadow-purple-600/50 transition-all flex items-center gap-1.5 disabled:opacity-50"
+              className="px-4 py-1.5 text-xs font-semibold text-zinc-950 bg-zinc-100 hover:bg-white rounded-lg border border-zinc-200 transition-colors flex items-center gap-1.5 disabled:opacity-50 cursor-pointer"
               disabled={isSubmitting}
               id="modal-submit-subscribe-btn"
             >
-              {isSubmitting ? (
-                <Loader2 size={14} className="animate-spin" />
-              ) : (
-                <Sparkles size={14} />
-              )}
+              {isSubmitting && <Loader2 size={13} className="animate-spin" />}
               <span>Activate Alerts</span>
             </button>
           </div>

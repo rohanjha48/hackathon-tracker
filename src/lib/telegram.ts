@@ -99,16 +99,21 @@ export async function sendTelegramMessage(
 export async function sendWelcomeTestPing(
   chatId: string,
   tags: string[],
-  botToken?: string
+  botToken?: string,
+  locationInfo?: { preferred_city?: string; preferred_country?: string; preferred_mode?: string }
 ): Promise<{ success: boolean; message?: string; error?: string }> {
   const tagsList = tags.length > 0 ? tags.join(', ') : 'All categories';
+  const city = locationInfo?.preferred_city && locationInfo.preferred_city !== 'All' ? locationInfo.preferred_city : 'All Cities (Global)';
+  const mode = locationInfo?.preferred_mode === 'in-person' ? 'In-Person Only' : locationInfo?.preferred_mode === 'online' ? 'Online Only' : 'Both (Online & In-Person)';
+
   const welcomeText = [
     '🎉 *Welcome to HackTrack Telegram Alerts!*',
     '',
     'Your subscription is active and connected to our live serverless pipeline.',
     '',
+    `📍 *Location Preferences:* ${city} • ${mode}`,
     `🎯 *Your Subscribed Tags:* \`${tagsList}\``,
-    '⏰ *Alert Windows:* 7 days, 3 days, and 24h before submission deadlines.',
+    '⏰ *Alert Windows:* 7 days, 3 days, and 24-48h before submission deadlines.',
     '',
     'You will automatically receive formatted alerts directly in this chat whenever hackathons matching your interests approach their deadline!',
     '',

@@ -4,7 +4,7 @@ on:
   schedule:
     # Runs daily at 00:00 UTC (100% free under GitHub's 2,000 monthly Actions minutes)
     - cron: '0 0 * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub anytime
+  workflow_dispatch: # Allows manual trigger directly from GitHub Actions dashboard anytime
 
 concurrency:
   group: notifier-cron
@@ -36,7 +36,8 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
         run: node scripts/notify.js

@@ -4,7 +4,7 @@ on:
   schedule:
     # Runs every 12 hours (100% free under GitHub's 2,000 monthly Actions minutes)
     - cron: '0 */12 * * *'
-  workflow_dispatch: # Allows manual trigger from GitHub anytime
+  workflow_dispatch: # Allows manual trigger directly from GitHub Actions dashboard anytime
 
 concurrency:
   group: scraper-cron
@@ -32,14 +32,11 @@ jobs:
       - name: Install Dependencies
         run: pnpm install --frozen-lockfile=false
 
-      - name: Install Chrome for Puppeteer
-        run: npx puppeteer browsers install chrome
-
       - name: Execute Scraper Engine
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
-          PUPPETEER_SKIP_CHROMIUM_DOWNLOAD: 'false'
+          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY || secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
         run: node scripts/scrape.js

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { chatId, tags } = body;
+    const { chatId, tags, preferred_city, preferred_country, preferred_mode } = body;
 
     if (!chatId || String(chatId).trim() === '') {
       return NextResponse.json(
@@ -17,7 +17,9 @@ export async function POST(request: NextRequest) {
 
     const result = await sendWelcomeTestPing(
       String(chatId).trim(),
-      Array.isArray(tags) ? tags : []
+      Array.isArray(tags) ? tags : [],
+      undefined,
+      { preferred_city, preferred_country, preferred_mode }
     );
 
     if (!result.success) {
