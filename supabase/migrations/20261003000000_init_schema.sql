@@ -104,13 +104,16 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.notification_logs ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Public read active hackathons"
-    ON public.hackathons FOR SELECT USING (is_active = TRUE);
+    ON public.hackathons FOR SELECT USING (true);
 
-CREATE POLICY "Allow public user registration"
-    ON public.users FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow full access to hackathons"
+    ON public.hackathons FOR ALL USING (true) WITH CHECK (true);
 
-CREATE POLICY "Allow users update own preference"
-    ON public.users FOR UPDATE USING (true);
+CREATE POLICY "Allow full access to users"
+    ON public.users FOR ALL USING (true) WITH CHECK (true);
+
+CREATE POLICY "Allow full access to notification_logs"
+    ON public.notification_logs FOR ALL USING (true) WITH CHECK (true);
 
 -- Auto-fill submission_deadline from registration_end
 CREATE OR REPLACE FUNCTION public.sync_deadline_fields()

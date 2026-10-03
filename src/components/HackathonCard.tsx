@@ -21,9 +21,9 @@ function calcTimeRemaining(targetIso: string) {
   const days = Math.floor(hours / 24);
 
   if (hours < 48) {
-    return { text: `🚨 ${hours}h left! (< 48h)`, isUrgent: true };
+    return { text: `${hours}h left (< 48h)`, isUrgent: true };
   }
-  return { text: `⏰ ${days} days remaining`, isUrgent: false };
+  return { text: `${days} days left`, isUrgent: false };
 }
 
 export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
@@ -84,32 +84,27 @@ export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
   });
 
   return (
-    <article className="group relative flex flex-col bg-slate-900/60 hover:bg-slate-900/90 border border-slate-800 hover:border-purple-500/50 rounded-2xl overflow-hidden backdrop-blur-xl transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl hover:shadow-purple-500/10">
+    <article className="group relative flex flex-col bg-zinc-900/60 hover:bg-zinc-900 border border-zinc-800 hover:border-zinc-700 rounded-xl overflow-hidden transition-colors">
       {/* Banner Image & Badges */}
-      <div className="relative h-44 w-full overflow-hidden bg-slate-950">
+      <div className="relative h-40 w-full overflow-hidden bg-zinc-950">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={
             hackathon.banner_url ||
             'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80'
           }
           alt={hackathon.title}
-          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+          className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/40 to-transparent" />
 
         {/* Top Badges: Platform + Mode Tag */}
-        <div className="absolute top-3 left-3 flex items-center gap-1.5 flex-wrap">
-          <span className="px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-cyan-300 bg-cyan-950/80 border border-cyan-500/30 rounded-md backdrop-blur-md">
+        <div className="absolute top-2.5 left-2.5 flex items-center gap-1.5 flex-wrap">
+          <span className="px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-zinc-300 bg-zinc-900/90 border border-zinc-700 rounded">
             {hackathon.source}
           </span>
-          <span
-            className={`px-2 py-0.5 text-[10px] font-bold rounded-md backdrop-blur-md border ${
-              modeInfo.isOnline
-                ? 'bg-emerald-950/80 text-emerald-300 border-emerald-500/30'
-                : 'bg-indigo-950/80 text-indigo-300 border-indigo-500/30'
-            }`}
-          >
+          <span className="px-2 py-0.5 text-[10px] font-medium text-zinc-300 bg-zinc-900/90 border border-zinc-700 rounded">
             {modeInfo.isOnline ? 'Online' : 'In-Person'}
           </span>
         </div>
@@ -118,92 +113,82 @@ export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
         <button
           type="button"
           onClick={toggleBookmark}
-          className={`absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center transition-colors backdrop-blur-md border ${
-            isBookmarked
-              ? 'bg-purple-600/40 text-purple-300 border-purple-400'
-              : 'bg-black/50 text-slate-400 border-white/10 hover:text-white'
-          }`}
+          className="absolute top-2.5 right-2.5 w-7 h-7 rounded-md flex items-center justify-center bg-zinc-950/80 text-zinc-400 border border-zinc-700 hover:text-white transition-colors cursor-pointer"
           aria-label="Bookmark hackathon"
         >
-          <Bookmark size={15} fill={isBookmarked ? '#c084fc' : 'none'} />
+          <Bookmark size={13} fill={isBookmarked ? '#ffffff' : 'none'} />
         </button>
 
         {/* Countdown Badge */}
-        <div
-          className={`absolute bottom-3 left-3 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-md border flex items-center gap-1.5 ${
-            timeRemaining.isUrgent
-              ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 shadow-lg shadow-rose-500/20'
-              : 'bg-purple-500/20 text-purple-200 border-purple-500/30'
-          }`}
-        >
-          <Clock size={12} />
+        <div className="absolute bottom-2.5 left-2.5 px-2.5 py-0.5 rounded text-xs font-medium bg-zinc-900/90 text-zinc-200 border border-zinc-700 flex items-center gap-1.5">
+          <Clock size={11} className="text-zinc-400" />
           <span>{timeRemaining.text}</span>
         </div>
       </div>
 
       {/* Card Content Body */}
-      <div className="p-5 flex flex-col flex-1">
+      <div className="p-4 flex flex-col flex-1">
         {/* Location & Featured Badge */}
-        <div className="flex items-center justify-between text-xs text-slate-400 mb-2.5">
+        <div className="flex items-center justify-between text-xs text-zinc-400 mb-2">
           <span className="flex items-center gap-1.5 truncate">
             {modeInfo.isOnline ? (
-              <Globe size={13} className="text-emerald-400 flex-shrink-0" />
+              <Globe size={12} className="text-zinc-500 flex-shrink-0" />
             ) : (
-              <MapPin size={13} className="text-rose-400 flex-shrink-0" />
+              <MapPin size={12} className="text-zinc-500 flex-shrink-0" />
             )}
-            <span className="truncate font-medium text-slate-300">
+            <span className="truncate text-zinc-400">
               {modeInfo.label}
             </span>
           </span>
           {hackathon.is_featured && (
-            <span className="flex items-center gap-1 text-[10px] font-bold text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full border border-amber-400/20 flex-shrink-0">
-              <Sparkles size={10} />
+            <span className="flex items-center gap-1 text-[10px] font-medium text-zinc-300 bg-zinc-800 px-2 py-0.5 rounded border border-zinc-700 flex-shrink-0">
+              <Sparkles size={9} />
               Featured
             </span>
           )}
         </div>
 
         {/* Title */}
-        <h3 className="text-lg font-bold text-white mb-2 line-clamp-1 group-hover:text-purple-300 transition-colors">
+        <h3 className="text-base font-semibold text-zinc-100 mb-1.5 line-clamp-1 hover:text-white transition-colors">
           <a href={hackathon.url} target="_blank" rel="noopener noreferrer">
             {hackathon.title}
           </a>
         </h3>
 
         {/* Description */}
-        <p className="text-xs text-slate-400 line-clamp-2 leading-relaxed mb-4">
+        <p className="text-xs text-zinc-400 line-clamp-2 leading-relaxed mb-3">
           {hackathon.description}
         </p>
 
         {/* Tags */}
-        <div className="flex flex-wrap gap-1.5 mb-5 mt-auto">
+        <div className="flex flex-wrap gap-1.5 mb-4 mt-auto">
           {hackathon.tags.slice(0, 3).map((tag) => (
             <span
               key={tag}
-              className="text-[11px] font-medium text-slate-300 bg-slate-800/80 border border-slate-700/50 px-2 py-0.5 rounded-md"
+              className="text-[11px] font-normal text-zinc-400 bg-zinc-950 border border-zinc-800 px-2 py-0.5 rounded"
             >
               #{tag}
             </span>
           ))}
           {hackathon.tags.length > 3 && (
-            <span className="text-[11px] text-slate-500 self-center">
+            <span className="text-[11px] text-zinc-500 self-center">
               +{hackathon.tags.length - 3}
             </span>
           )}
         </div>
 
         {/* Footer: Dynamic Currency Prize Pool & CTA */}
-        <div className="pt-3 border-t border-slate-800/80 flex items-center justify-between gap-3">
+        <div className="pt-3 border-t border-zinc-800 flex items-center justify-between gap-3">
           <div>
-            <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500 block">
+            <span className="text-[10px] font-medium uppercase tracking-wider text-zinc-500 block">
               Prize Pool
             </span>
             <div className="flex items-baseline gap-1.5">
-              <span className="text-base font-extrabold text-emerald-400">
+              <span className="text-sm sm:text-base font-bold text-zinc-100">
                 {formattedPrize}
               </span>
               {rawPrize > 0 && (
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-300 border border-emerald-500/20">
+                <span className="text-[10px] font-medium px-1.5 py-0.2 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
                   {currencyCode}
                 </span>
               )}
@@ -214,7 +199,7 @@ export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
             href={hackathon.url}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 rounded-lg shadow-md shadow-purple-600/30 transition-all hover:scale-105 active:scale-100"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-zinc-950 bg-zinc-100 hover:bg-white rounded-md border border-zinc-200 transition-colors cursor-pointer"
           >
             <span>Apply</span>
             <ExternalLink size={12} />
@@ -222,8 +207,8 @@ export const HackathonCard: React.FC<HackathonCardProps> = ({ hackathon }) => {
         </div>
 
         {/* Deadline text */}
-        <div className="flex items-center gap-1.5 text-[11px] text-slate-500 mt-2.5">
-          <Calendar size={12} />
+        <div className="flex items-center gap-1.5 text-[11px] text-zinc-500 mt-2">
+          <Calendar size={11} />
           <span>Closes: {formattedDeadline}</span>
         </div>
       </div>

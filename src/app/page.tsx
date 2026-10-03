@@ -9,13 +9,12 @@ import { HackathonCard } from '@/components/HackathonCard';
 import { HowItWorks } from '@/components/HowItWorks';
 import { SubscribeModal } from '@/components/SubscribeModal';
 import { Hackathon } from '@/lib/types';
-import { MOCK_HACKATHONS } from '@/lib/mockData';
 import { normalizeMode } from '@/lib/formatters';
 import { Zap, Bell, ExternalLink, RefreshCw } from 'lucide-react';
 
 export default function Home() {
-  const [hackathons, setHackathons] = useState<Hackathon[]>(MOCK_HACKATHONS);
-  const [loading, setLoading] = useState(false);
+  const [hackathons, setHackathons] = useState<Hackathon[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedTag, setSelectedTag] = useState('All');
   const [selectedMode, setSelectedMode] = useState<ModeFilter>('both');
@@ -24,9 +23,7 @@ export default function Home() {
   const [sortBy, setSortBy] = useState<'deadline_asc' | 'deadline_desc' | 'prize_desc' | 'newest'>('deadline_asc');
   const [isSubscribeOpen, setIsSubscribeOpen] = useState(false);
 
-  const botUrl = process.env.NEXT_PUBLIC_TELEGRAM_BOT_URL || 'https://t.me/MyHackthonAlert_bot';
-
-  // Fetch live hackathon data directly from Supabase / API with localization parameters
+  // Fetch live hackathon data directly from Supabase via API route
   useEffect(() => {
     let isCancelled = false;
 
@@ -45,11 +42,14 @@ export default function Home() {
         if (!res.ok) throw new Error('Failed to fetch hackathons');
         const json = await res.json();
 
-        if (!isCancelled && json.data) {
-          setHackathons(json.data);
+        if (!isCancelled) {
+          setHackathons(Array.isArray(json.data) ? json.data : []);
         }
       } catch (err) {
-        console.warn('API fetch fell back to client cache:', err);
+        console.warn('API fetch note:', err);
+        if (!isCancelled) {
+          setHackathons([]);
+        }
       } finally {
         if (!isCancelled) setLoading(false);
       }
@@ -72,7 +72,6 @@ export default function Home() {
       (h) => normalizeMode(h.mode || h.location_type) === 'online'
     ).length;
 
-    // Pick earliest deadline
     const sorted = [...hackathons].sort((a, b) => {
       const tA = new Date(a.registration_end || a.submission_deadline).getTime();
       const tB = new Date(b.registration_end || b.submission_deadline).getTime();
@@ -82,13 +81,13 @@ export default function Home() {
     return {
       totalPrizes: total,
       onlineCount: online,
-      urgentHackathon: sorted[0] || hackathons[0],
+      urgentHackathon: sorted[0] || undefined,
     };
   }, [hackathons]);
 
   return (
-    <div className="min-h-screen bg-[#07080d] text-slate-100 flex flex-col justify-between selection:bg-purple-500 selection:text-white">
-      {/* Centered Navigation Header */}
+    <div className="min-h-screen bg-zinc-950 text-zinc-100 flex flex-col justify-between selection:bg-zinc-800 selection:text-white">
+      {/* Navigation Header */}
       <Header
         onOpenSubscribe={() => setIsSubscribeOpen(true)}
         totalPrizes={totalPrizes}
@@ -96,20 +95,20 @@ export default function Home() {
 
       {/* Main Content Container */}
       <main className="w-full flex-1 flex flex-col items-center">
-        {/* Hero Section with Live 48h Countdown Banner */}
+        {/* Hero Section */}
         <HeroBanner
           onOpenSubscribe={() => setIsSubscribeOpen(true)}
           urgentHackathon={urgentHackathon}
         />
 
-        {/* Live Key Metrics */}
+        {/* Key Metrics */}
         <StatsBar
           totalPrizes={totalPrizes}
           totalHackathons={hackathons.length}
           onlineCount={onlineCount}
         />
 
-        {/* Search, Filter & Sort Controls with Country & City Dropdowns and Mode Toggle */}
+        {/* Search, Filter & Sort Controls */}
         <FilterBar
           search={search}
           onSearchChange={setSearch}
@@ -130,25 +129,25 @@ export default function Home() {
         <section className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-16 sm:mb-20">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
             <div>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight flex items-center gap-2">
+              <h2 className="text-xl sm:text-2xl font-bold text-zinc-100 tracking-tight flex items-center gap-2">
                 <span>Active Student Hackathons</span>
-                <span className="text-xs font-semibold px-2.5 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30">
+                <span className="text-xs font-medium px-2 py-0.5 rounded bg-zinc-900 text-zinc-300 border border-zinc-800">
                   {hackathons.length} live
                 </span>
               </h2>
-              <p className="text-xs sm:text-sm text-slate-400 mt-1">
-                Aggregated from Devpost & Unstop • Filtered by Bangalore, India & Worldwide Hubs • Automated 48h alerts
+              <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+                Aggregated from Devpost & Unstop • Filtered by Bangalore, India & Worldwide Hubs
               </p>
             </div>
 
-            {/* Direct Telegram Alerts Callout */}
+            {/* Hardcoded Telegram Alerts Callout */}
             <a
-              href={botUrl}
+              href="https://t.me/MyHackthonAlert_bot"
               target="_blank"
               rel="noopener noreferrer"
-              className="self-start sm:self-auto inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-bold text-slate-200 bg-slate-900 hover:bg-slate-800 border border-slate-700/60 rounded-xl transition-all hover:scale-105"
+              className="self-start sm:self-auto inline-flex items-center gap-2 px-3 py-1.5 text-xs font-semibold text-zinc-200 bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 rounded-lg transition-colors cursor-pointer"
             >
-              <Bell size={14} className="text-purple-400" />
+              <Bell size={13} className="text-zinc-400" />
               <span>Get Telegram Alerts</span>
               <ExternalLink size={12} className="opacity-70" />
             </a>
@@ -159,12 +158,12 @@ export default function Home() {
               {[1, 2, 3, 4, 5, 6].map((i) => (
                 <div
                   key={i}
-                  className="h-96 rounded-2xl bg-slate-900/40 border border-slate-800 animate-pulse p-4 flex flex-col justify-between"
+                  className="h-80 rounded-xl bg-zinc-900/40 border border-zinc-800/80 animate-pulse p-4 flex flex-col justify-between"
                 >
-                  <div className="h-44 bg-slate-800/50 rounded-xl mb-4" />
-                  <div className="h-5 bg-slate-800/60 rounded w-3/4 mb-2" />
-                  <div className="h-4 bg-slate-800/40 rounded w-1/2 mb-4" />
-                  <div className="h-10 bg-slate-800/30 rounded-xl" />
+                  <div className="h-40 bg-zinc-800/50 rounded-lg mb-4" />
+                  <div className="h-4 bg-zinc-800/60 rounded w-3/4 mb-2" />
+                  <div className="h-3 bg-zinc-800/40 rounded w-1/2 mb-4" />
+                  <div className="h-8 bg-zinc-800/30 rounded-lg" />
                 </div>
               ))}
             </div>
@@ -175,10 +174,12 @@ export default function Home() {
               ))}
             </div>
           ) : (
-            <div className="text-center py-16 sm:py-20 px-4 bg-slate-900/30 border border-dashed border-slate-800 rounded-3xl w-full">
-              <h3 className="text-base sm:text-lg font-bold text-white mb-2">No Hackathons Match Your Query</h3>
-              <p className="text-xs sm:text-sm text-slate-400 mb-6">
-                Try clearing your city filter or switching mode to view other events.
+            <div className="text-center py-16 sm:py-20 px-4 bg-zinc-900/30 border border-dashed border-zinc-800 rounded-2xl w-full">
+              <h3 className="text-base sm:text-lg font-semibold text-zinc-200 mb-2">
+                No active hackathons found. Please run the scraper.
+              </h3>
+              <p className="text-xs sm:text-sm text-zinc-500 mb-5 max-w-md mx-auto">
+                No events currently match your filters or the database needs to be populated. You can run the scraper manually from the GitHub Actions dashboard.
               </p>
               <button
                 type="button"
@@ -189,9 +190,9 @@ export default function Home() {
                   setSelectedCountry('All');
                   setSelectedCity('All');
                 }}
-                className="inline-flex items-center gap-2 px-4 py-2 text-xs font-bold text-white bg-purple-600 hover:bg-purple-500 rounded-xl transition-all cursor-pointer"
+                className="inline-flex items-center gap-2 px-3.5 py-1.5 text-xs font-semibold text-zinc-950 bg-zinc-100 hover:bg-white rounded-md border border-zinc-200 transition-colors cursor-pointer"
               >
-                <RefreshCw size={14} />
+                <RefreshCw size={13} />
                 <span>Reset All Filters</span>
               </button>
             </div>
@@ -202,35 +203,35 @@ export default function Home() {
         <HowItWorks />
       </main>
 
-      {/* Centered Minimal Footer */}
-      <footer className="w-full border-t border-slate-800/80 bg-[#050609] py-10 text-slate-400 text-xs">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-6">
+      {/* Minimal Monochromatic Footer */}
+      <footer className="w-full border-t border-zinc-800/80 bg-zinc-950 py-8 text-zinc-500 text-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col gap-5">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex items-center gap-2.5">
-              <span className="w-8 h-8 rounded-lg bg-gradient-to-tr from-purple-600 to-cyan-500 flex items-center justify-center text-white">
-                <Zap size={16} />
+              <span className="w-7 h-7 rounded-md bg-zinc-900 border border-zinc-700 flex items-center justify-center text-zinc-100">
+                <Zap size={14} />
               </span>
-              <span className="text-base font-extrabold text-white">HackTrack</span>
-              <span className="text-[11px] text-slate-500 ml-2">Student Hackathon Radar</span>
+              <span className="text-sm font-bold text-zinc-100">HackTrack</span>
+              <span className="text-[11px] text-zinc-500 ml-2">Collegiate Hackathon Radar</span>
             </div>
 
             <div className="flex items-center gap-2 flex-wrap justify-center">
-              <span className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-[11px] text-slate-400">
+              <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded text-[11px] text-zinc-400">
                 Next.js 16 + Tailwind CSS
               </span>
-              <span className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-[11px] text-slate-400">
+              <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded text-[11px] text-zinc-400">
                 Supabase Postgres
               </span>
-              <span className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-[11px] text-slate-400">
+              <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded text-[11px] text-zinc-400">
                 GitHub Actions Cron
               </span>
-              <span className="px-2.5 py-1 bg-slate-900 border border-slate-800 rounded text-[11px] text-slate-400">
+              <span className="px-2.5 py-1 bg-zinc-900 border border-zinc-800 rounded text-[11px] text-zinc-400">
                 Telegram Bot API
               </span>
             </div>
           </div>
 
-          <div className="border-t border-slate-800/50 pt-5 flex flex-col sm:flex-row items-center justify-between gap-2 text-slate-500 text-[11px]">
+          <div className="border-t border-zinc-800/50 pt-4 flex flex-col sm:flex-row items-center justify-between gap-2 text-zinc-500 text-[11px]">
             <span>Automated collegiate hackathon tracker and notification system with location & currency localization.</span>
             <span>Built for students worldwide</span>
           </div>

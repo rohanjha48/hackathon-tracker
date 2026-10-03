@@ -57,14 +57,14 @@ export const FilterBar: React.FC<FilterBarProps> = ({
 
   return (
     <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8" id="hackathons-grid">
-      <div className="w-full bg-slate-900/60 border border-slate-800/80 rounded-2xl p-4 sm:p-6 backdrop-blur-xl shadow-xl">
+      <div className="w-full bg-zinc-900/60 border border-zinc-800 rounded-xl p-4 sm:p-5">
         {/* Top Search & Filter Controls Grid */}
-        <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3.5 mb-4">
+        <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-3 mb-4">
           {/* Search Input */}
           <div className="relative flex-1 w-full">
             <Search
-              size={17}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none"
+              size={16}
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none"
             />
             <input
               type="text"
@@ -72,16 +72,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               placeholder="Search hackathons by title, city (e.g. Bangalore), or keywords..."
               value={search}
               onChange={(e) => onSearchChange(e.target.value)}
-              className="w-full bg-slate-950 border border-slate-800 focus:border-purple-500 rounded-xl pl-10 pr-9 py-2.5 text-xs sm:text-sm text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all"
+              className="w-full bg-zinc-950 border border-zinc-800 focus:border-zinc-600 rounded-lg pl-9 pr-9 py-2 text-xs sm:text-sm text-zinc-100 placeholder-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors"
             />
             {search && (
               <button
                 type="button"
                 onClick={() => onSearchChange('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 hover:text-slate-300 p-1"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300 p-1 cursor-pointer"
                 aria-label="Clear search"
               >
-                <X size={15} />
+                <X size={14} />
               </button>
             )}
           </div>
@@ -89,7 +89,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           {/* Controls Cluster: Mode Toggle + Location Dropdowns + Sort */}
           <div className="flex flex-wrap sm:flex-nowrap items-center gap-2.5 sm:gap-3">
             {/* Mode Toggle: Both | Online | In-Person */}
-            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold overflow-x-auto w-full sm:w-auto">
+            <div className="flex items-center bg-zinc-950 p-1 rounded-lg border border-zinc-800 text-xs font-medium overflow-x-auto w-full sm:w-auto">
               {(
                 [
                   { value: 'both', label: 'Both' },
@@ -101,10 +101,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                   key={m.value}
                   type="button"
                   id={`mode-toggle-${m.value}`}
-                  className={`px-3 py-1.5 rounded-lg transition-all whitespace-nowrap flex-1 sm:flex-initial text-center ${
+                  className={`px-3 py-1.5 rounded-md transition-colors whitespace-nowrap flex-1 sm:flex-initial text-center cursor-pointer ${
                     selectedMode === m.value
-                      ? 'bg-purple-600 text-white shadow-sm font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
+                      ? 'bg-zinc-100 text-zinc-950 font-semibold'
+                      : 'text-zinc-400 hover:text-zinc-200'
                   }`}
                   onClick={() => onModeSelect(m.value)}
                 >
@@ -114,16 +114,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
             </div>
 
             {/* Country Selector Dropdown */}
-            <div className="relative flex items-center flex-1 sm:flex-initial min-w-[140px]">
-              <Globe size={14} className="absolute left-3 text-purple-400 pointer-events-none" />
+            <div className="relative flex items-center flex-1 sm:flex-initial min-w-[130px]">
+              <Globe size={13} className="absolute left-2.5 text-zinc-500 pointer-events-none" />
               <select
                 id="country-filter-select"
                 value={selectedCountry}
                 onChange={(e) => {
                   onCountrySelect(e.target.value);
-                  onCitySelect('All'); // Reset city on country change
+                  onCitySelect('All');
                 }}
-                className="w-full appearance-none bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl pl-8 pr-7 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all cursor-pointer"
+                className="w-full appearance-none bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg pl-8 pr-7 py-1.5 text-xs font-medium text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
               >
                 {POPULAR_COUNTRIES.map((c) => (
                   <option key={c.value} value={c.value}>
@@ -133,27 +133,27 @@ export const FilterBar: React.FC<FilterBarProps> = ({
               </select>
             </div>
 
-            {/* City Selector Dropdown (Features Bangalore, Delhi, etc.) */}
-            <div className="relative flex items-center flex-1 sm:flex-initial min-w-[130px]">
-              <Building2 size={14} className="absolute left-3 text-emerald-400 pointer-events-none" />
+            {/* City Selector Dropdown */}
+            <div className="relative flex items-center flex-1 sm:flex-initial min-w-[125px]">
+              <Building2 size={13} className="absolute left-2.5 text-zinc-500 pointer-events-none" />
               <select
                 id="city-filter-select"
                 value={selectedCity}
                 onChange={(e) => onCitySelect(e.target.value)}
-                className="w-full appearance-none bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl pl-8 pr-7 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all cursor-pointer"
+                className="w-full appearance-none bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg pl-8 pr-7 py-1.5 text-xs font-medium text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
               >
                 <option value="All">All Cities</option>
                 {availableCities.map((city) => (
                   <option key={city} value={city}>
-                    {city === 'Bangalore' ? 'Bangalore 🇮🇳 (Hot)' : city}
+                    {city === 'Bangalore' ? 'Bangalore (Hot)' : city}
                   </option>
                 ))}
               </select>
             </div>
 
             {/* Sort Dropdown */}
-            <div className="relative flex items-center flex-1 sm:flex-initial min-w-[140px]">
-              <ArrowUpDown size={14} className="absolute left-3 text-slate-500 pointer-events-none" />
+            <div className="relative flex items-center flex-1 sm:flex-initial min-w-[135px]">
+              <ArrowUpDown size={13} className="absolute left-2.5 text-zinc-500 pointer-events-none" />
               <select
                 id="hackathon-sort-select"
                 value={sortBy}
@@ -162,7 +162,7 @@ export const FilterBar: React.FC<FilterBarProps> = ({
                     e.target.value as 'deadline_asc' | 'deadline_desc' | 'prize_desc' | 'newest'
                   )
                 }
-                className="w-full appearance-none bg-slate-950 border border-slate-800 hover:border-slate-700 rounded-xl pl-8 pr-7 py-2 text-xs font-semibold text-slate-200 focus:outline-none focus:ring-2 focus:ring-purple-500/20 transition-all cursor-pointer"
+                className="w-full appearance-none bg-zinc-950 border border-zinc-800 hover:border-zinc-700 rounded-lg pl-8 pr-7 py-1.5 text-xs font-medium text-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-600 transition-colors cursor-pointer"
               >
                 <option value="deadline_asc">Closing Soonest</option>
                 <option value="prize_desc">Highest Prize Pool</option>
@@ -174,16 +174,16 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* Horizontal Scrollable Tag Chips */}
-        <div className="overflow-x-auto pb-2 mb-3 scrollbar-none">
-          <div className="flex items-center gap-2 min-w-max">
+        <div className="overflow-x-auto pb-2 mb-2 scrollbar-none">
+          <div className="flex items-center gap-1.5 min-w-max">
             {POPULAR_TAGS.map((tag) => (
               <button
                 key={tag}
                 type="button"
-                className={`px-3 py-1.5 rounded-full text-xs font-medium transition-all ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors cursor-pointer ${
                   selectedTag === tag
-                    ? 'bg-purple-600 text-white shadow-md shadow-purple-600/30'
-                    : 'bg-slate-950/80 text-slate-400 border border-slate-800 hover:border-slate-700 hover:text-slate-200'
+                    ? 'bg-zinc-100 text-zinc-950'
+                    : 'bg-zinc-950 text-zinc-400 border border-zinc-800 hover:border-zinc-700 hover:text-zinc-200'
                 }`}
                 onClick={() => onTagSelect(tag)}
               >
@@ -194,34 +194,34 @@ export const FilterBar: React.FC<FilterBarProps> = ({
         </div>
 
         {/* Results Meta Summary & Active Localization Filter Pills */}
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2.5 pt-3 border-t border-slate-800/80 text-xs text-slate-400">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 pt-3 border-t border-zinc-800/80 text-xs text-zinc-400">
           <div className="flex items-center gap-2 flex-wrap">
             <span>
-              Showing <strong className="text-white">{resultsCount}</strong> hackathons
+              Showing <strong className="text-zinc-200">{resultsCount}</strong> hackathons
             </span>
 
             {selectedMode !== 'both' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/30">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
                 Mode: {selectedMode === 'in-person' ? 'In-Person' : 'Online'}
               </span>
             )}
 
             {selectedCountry !== 'All' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-sky-500/10 text-sky-300 border border-sky-500/30">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
                 <Globe size={11} />
                 {selectedCountry}
               </span>
             )}
 
             {selectedCity !== 'All' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
                 <MapPin size={11} />
                 {selectedCity}
               </span>
             )}
 
             {selectedTag !== 'All' && (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-zinc-800 text-zinc-300 border border-zinc-700">
                 #{selectedTag}
               </span>
             )}
@@ -230,10 +230,10 @@ export const FilterBar: React.FC<FilterBarProps> = ({
           {hasActiveFilters && (
             <button
               type="button"
-              className="text-purple-400 hover:text-purple-300 font-semibold underline underline-offset-4 cursor-pointer"
+              className="text-zinc-400 hover:text-zinc-200 underline underline-offset-4 cursor-pointer"
               onClick={handleResetFilters}
             >
-              Reset All Filters
+              Reset Filters
             </button>
           )}
         </div>

@@ -1,21 +1,20 @@
 @import "tailwindcss";
 
 /* ==============================================================================
-   🚀 HACKTRACK MODERN DARK DESIGN SYSTEM
-   Tailwind CSS v4 Integration + Dark Canvas Styling
+   HACKTRACK MINIMAL MONOCHROMATIC DARK DESIGN SYSTEM
+   Professional, flat, neutral dark mode (Zinc / Slate / Neutral Gray)
    ============================================================================== */
 
 :root {
-  /* Core Theme Tokens */
-  --bg-primary: #07080d;
-  --bg-secondary: #0d0f18;
-  --text-primary: #f8fafc;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
+  --bg-primary: #09090b;
+  --bg-secondary: #18181b;
+  --text-primary: #fafafa;
+  --text-secondary: #a1a1aa;
+  --text-muted: #71717a;
+  --border-color: #27272a;
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
 }
 
-/* Base Reset & Smooth Scrolling */
 *, *::before, *::after {
   box-sizing: border-box;
 }
@@ -30,31 +29,26 @@ body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
   min-height: 100vh;
-  line-height: 1.6;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
-  background-image: 
-    radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.12), transparent 50%),
-    radial-gradient(ellipse at 80% 30%, rgba(6, 182, 212, 0.08), transparent 40%);
-  background-attachment: fixed;
 }
 
-/* Modern Dark Custom Scrollbar */
+/* Minimal Monochromatic Scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
 }
 ::-webkit-scrollbar-track {
-  background: var(--bg-primary);
+  background: #09090b;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e2438;
-  border-radius: 9999px;
+  background: #27272a;
+  border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #333c5e;
+  background: #3f3f46;
 }
 
-/* Line clamp support */
 .line-clamp-1 {
   display: -webkit-box;
   -webkit-line-clamp: 1;

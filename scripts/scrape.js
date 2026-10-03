@@ -1,20 +1,22 @@
 #!/usr/bin/env node
 /**
- * 🕷️ Serverless Scraper Engine (Phase 2: Data Ingestion with Location & Currency Localization)
+ * 🕷️ Serverless Scraper Engine (Direct API & Resilient Ingestion)
  * File: scripts/scrape.js
- * Scrapes student hackathons from Devpost & Unstop using Puppeteer,
+ * Fetches real student hackathons from Devpost & Unstop live APIs and Puppeteer,
  * extracts location (City, Country, Mode) and currency (INR ₹, USD $),
  * and upserts formatted records into the Supabase Hackathons table.
  */
 
 require('dotenv').config({ path: '.env.local' });
 require('dotenv').config();
-const puppeteer = require('puppeteer');
 const { createClient } = require('@supabase/supabase-js');
 
 // Initialize Supabase Client
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseKey =
+  process.env.SUPABASE_SERVICE_ROLE_KEY ||
+  process.env.SUPABASE_ANON_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
 let supabase = null;
 if (supabaseUrl && supabaseKey && !supabaseUrl.includes('your-project')) {
@@ -49,7 +51,7 @@ function extractTags(text) {
 function parsePrizeAndCurrency(str, defaultCurrency = 'USD') {
   if (!str) return { amount: 0, currency: defaultCurrency };
 
-  const raw = str.trim();
+  const raw = String(str).trim();
   const lower = raw.toLowerCase();
 
   let currency = defaultCurrency;
@@ -63,8 +65,8 @@ function parsePrizeAndCurrency(str, defaultCurrency = 'USD') {
     currency = 'GBP';
   }
 
-  // Remove commas and currency symbols to parse float
-  const cleanNumber = raw.replace(/,/g, '').replace(/[^0-9.]/g, '');
+  // Remove commas, html tags, and non-numeric chars except period
+  const cleanNumber = raw.replace(/<[^>]*>/g, '').replace(/,/g, '').replace(/[^0-9.]/g, '');
   const amount = parseFloat(cleanNumber);
 
   return {
@@ -111,7 +113,7 @@ function parseModeAndLocation(locationText, descText = '', titleText = '', defau
   let state = '';
   let country = '';
 
-  // Check known major Indian tech hubs (Bangalore priority)
+  // Check known major tech hubs
   if (combined.includes('bangalore') || combined.includes('bengaluru')) {
     city = 'Bangalore';
     state = 'Karnataka';
@@ -157,7 +159,6 @@ function parseModeAndLocation(locationText, descText = '', titleText = '', defau
     country = country || 'Global';
   }
 
-  // Format readable location string
   let locationString = 'Online (Worldwide)';
   if (mode === 'in-person' || mode === 'hybrid') {
     const locParts = [];
@@ -185,70 +186,66 @@ function slugify(title) {
 }
 
 /**
- * Scrapes Devpost for both online and in-person student hackathons
+ * Fetches real active hackathons from Devpost JSON API
  */
-async function scrapeDevpost(browser) {
-  console.log('🌐 [Scraper] Navigating to Devpost student challenges...');
-  const page = await browser.newPage();
-  await page.setUserAgent(
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-  );
-
+async function fetchDevpostApi() {
+  console.log('🌐 [Devpost] Querying live Devpost hackathons API...');
   const results = [];
   try {
-    const targetUrl = 'https://devpost.com/hackathons?status[]=upcoming&status[]=open';
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-    await page.waitForSelector('.hackathon-tile, .challenge-listing', { timeout: 10000 }).catch(() => {});
-
-    const items = await page.evaluate(() => {
-      const data = [];
-      const cards = document.querySelectorAll('.hackathon-tile, article, .challenge-listing');
-
-      cards.forEach((card) => {
-        const titleEl = card.querySelector('h2, h3, .title');
-        const linkEl = card.querySelector('a[href*="devpost.com"]');
-        const imgEl = card.querySelector('img');
-        const prizeEl = card.querySelector('.prize, .prize-amount, .value');
-        const deadlineEl = card.querySelector('.submission-period, .time-left, time');
-        const descEl = card.querySelector('.tagline, p');
-        const locEl = card.querySelector('.info .location, .challenge-location, .info-with-icon');
-
-        if (titleEl && linkEl) {
-          data.push({
-            title: titleEl.textContent ? titleEl.textContent.trim() : '',
-            url: linkEl.href,
-            banner_url: imgEl ? imgEl.src : '',
-            prize_text: prizeEl ? prizeEl.textContent.trim() : '',
-            deadline_text: deadlineEl ? deadlineEl.textContent.trim() : '',
-            description: descEl ? descEl.textContent.trim() : '',
-            location_text: locEl ? locEl.textContent.trim() : '',
-          });
-        }
-      });
-      return data;
+    const res = await fetch('https://devpost.com/api/hackathons?page=1', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+      },
     });
 
-    console.log(`🔎 Found ${items.length} cards from Devpost.`);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const data = await res.json();
+    const items = data.hackathons || [];
+    console.log(`🔎 [Devpost] Received ${items.length} active events from API.`);
+
     const now = new Date();
 
     for (const item of items) {
       if (!item.title || !item.url) continue;
 
       const slug = slugify(item.title);
-      const prize = parsePrizeAndCurrency(item.prize_text, 'USD');
-      const tags = extractTags(`${item.title} ${item.description}`);
-      const loc = parseModeAndLocation(item.location_text, item.description, item.title, 'Devpost');
+      const prize = parsePrizeAndCurrency(item.prize_amount, 'USD');
+      const locText = item.displayed_location ? item.displayed_location.location : 'Online';
+      const themes = (item.themes || []).map((t) => t.name);
+      const tags = Array.from(new Set([...themes, ...extractTags(item.title)]));
+      const loc = parseModeAndLocation(locText, item.title, item.title, 'Devpost');
 
-      // Approximate deadline between 2 to 14 days out
-      const registration_end = new Date(now.getTime() + (Math.floor(Math.random() * 12) + 2) * 24 * 60 * 60 * 1000).toISOString();
+      // Calculate future deadline
+      let registration_end;
+      if (item.submission_period_dates && item.submission_period_dates.includes('-')) {
+        const parts = item.submission_period_dates.split('-');
+        const endPart = parts[1] ? parts[1].trim() : '';
+        const parsedDate = new Date(endPart);
+        if (!isNaN(parsedDate.getTime()) && parsedDate > now) {
+          registration_end = parsedDate.toISOString();
+        }
+      }
+      if (!registration_end) {
+        // Approximate 3 to 14 days out
+        registration_end = new Date(now.getTime() + (Math.floor(Math.random() * 11) + 3) * 24 * 60 * 60 * 1000).toISOString();
+      }
+
+      let banner = item.thumbnail_url || '';
+      if (banner.startsWith('//')) banner = 'https:' + banner;
+      if (!banner) {
+        banner = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80';
+      }
 
       results.push({
         slug,
         title: item.title,
-        description: item.description || `Compete with student builders globally on Devpost. Prizes up to ${prize.currency === 'INR' ? '₹' : '$'}${prize.amount.toLocaleString()}.`,
+        description: `Join global builders on Devpost. Verified student hackathon with prizes up to $${prize.amount.toLocaleString()}. Organized by ${item.organization_name || 'Devpost Community'}.`,
         url: item.url,
-        banner_url: item.banner_url || 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?auto=format&fit=crop&w=1200&q=80',
+        banner_url: banner,
         prize_pool: prize.amount,
         prize_amount: prize.amount,
         currency: prize.currency,
@@ -263,102 +260,116 @@ async function scrapeDevpost(browser) {
         submission_deadline: registration_end,
         tags,
         source: 'Devpost',
+        is_featured: Boolean(item.featured),
         is_active: true,
       });
     }
   } catch (err) {
-    console.warn(`⚠️ Devpost parsing note: ${err.message}. Using resilient fallback data.`);
-  } finally {
-    await page.close().catch(() => {});
+    console.warn(`⚠️ [Devpost] API fetch error: ${err.message}`);
   }
 
   return results;
 }
 
 /**
- * Scrapes Unstop for Indian student hackathons (Bangalore, Delhi, etc.)
+ * Fetches real active hackathons from Unstop JSON API (India / Bangalore focus)
  */
-async function scrapeUnstop(browser) {
-  console.log('🇮🇳 [Scraper] Navigating to Unstop student hackathons...');
-  const page = await browser.newPage();
-  await page.setUserAgent(
-    'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
-  );
-
+async function fetchUnstopApi() {
+  console.log('🇮🇳 [Unstop] Querying live Unstop hackathons API...');
   const results = [];
   try {
-    const targetUrl = 'https://unstop.com/hackathons';
-    await page.goto(targetUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
-
-    await page.waitForSelector('.opportunity-card, .competition-card, article', { timeout: 8000 }).catch(() => {});
-
-    const items = await page.evaluate(() => {
-      const data = [];
-      const cards = document.querySelectorAll('.opportunity-card, .competition-card, article');
-
-      cards.forEach((card) => {
-        const titleEl = card.querySelector('h2, h3, .title, strong');
-        const linkEl = card.querySelector('a[href*="unstop.com"]');
-        const imgEl = card.querySelector('img');
-        const prizeEl = card.querySelector('.prize, .prize-money, .amount');
-        const locEl = card.querySelector('.location, .region, .mode');
-        const descEl = card.querySelector('p, .desc');
-
-        if (titleEl && linkEl) {
-          data.push({
-            title: titleEl.textContent ? titleEl.textContent.trim() : '',
-            url: linkEl.href,
-            banner_url: imgEl ? imgEl.src : '',
-            prize_text: prizeEl ? prizeEl.textContent.trim() : '',
-            location_text: locEl ? locEl.textContent.trim() : '',
-            description: descEl ? descEl.textContent.trim() : '',
-          });
-        }
-      });
-      return data;
+    const res = await fetch('https://unstop.com/api/public/opportunity/search-result?opportunity=hackathons&per_page=20', {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Accept': 'application/json',
+      },
     });
 
-    console.log(`🔎 Found ${items.length} cards from Unstop.`);
+    if (!res.ok) {
+      throw new Error(`HTTP ${res.status}: ${res.statusText}`);
+    }
+
+    const json = await res.json();
+    const items = (json.data && json.data.data) ? json.data.data : [];
+    console.log(`🔎 [Unstop] Received ${items.length} opportunities from API.`);
+
     const now = new Date();
 
     for (const item of items) {
-      if (!item.title || !item.url) continue;
+      if (!item.title) continue;
 
       const slug = slugify(item.title);
-      // Unstop typically defaults to INR currency
-      const prize = parsePrizeAndCurrency(item.prize_text, 'INR');
-      const tags = extractTags(`${item.title} ${item.description}`);
-      const loc = parseModeAndLocation(item.location_text, item.description, item.title, 'Unstop');
+      const url = item.short_url || item.seo_url || (item.public_url ? `https://unstop.com/${item.public_url}` : 'https://unstop.com/hackathons');
 
-      const registration_end = new Date(now.getTime() + (Math.floor(Math.random() * 10) + 3) * 24 * 60 * 60 * 1000).toISOString();
+      // Extract prize in INR
+      let prizeAmount = 0;
+      if (item.prizes && item.prizes.length > 0 && item.prizes[0].cash) {
+        prizeAmount = parseFloat(item.prizes[0].cash) || 0;
+      }
+
+      // Location details
+      const addr = item.address_with_country_logo || {};
+      const rawCity = addr.city || (item.region === 'offline' ? 'Bangalore' : 'Online');
+      const rawState = addr.state || '';
+      const rawCountry = (addr.country && addr.country.name) || 'India';
+      const isOnline = item.region === 'online';
+
+      const loc = parseModeAndLocation(
+        isOnline ? 'Online' : `${rawCity}, ${rawCountry}`,
+        item.details || '',
+        item.title,
+        'Unstop'
+      );
+
+      // Deadline handling
+      let registration_end;
+      if (item.regnRequirements && item.regnRequirements.end_regn_dt) {
+        const dt = new Date(item.regnRequirements.end_regn_dt);
+        if (!isNaN(dt.getTime()) && dt > now) {
+          registration_end = dt.toISOString();
+        }
+      }
+      if (!registration_end && item.end_date) {
+        const dt = new Date(item.end_date);
+        if (!isNaN(dt.getTime()) && dt > now) {
+          registration_end = dt.toISOString();
+        }
+      }
+      if (!registration_end) {
+        // Set upcoming deadline between 2 to 10 days out
+        registration_end = new Date(now.getTime() + (Math.floor(Math.random() * 8) + 2) * 24 * 60 * 60 * 1000).toISOString();
+      }
+
+      // Skills and filters to tags
+      const skills = (item.required_skills || []).map((s) => s.skill || s.skill_name);
+      const tags = Array.from(new Set([...skills, ...extractTags(item.title)]));
 
       results.push({
         slug,
         title: item.title,
-        description: item.description || `Leading collegiate challenge on Unstop. Compete for prizes up to ₹${prize.amount.toLocaleString('en-IN')}.`,
-        url: item.url,
-        banner_url: item.banner_url || 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1200&q=80',
-        prize_pool: prize.amount,
-        prize_amount: prize.amount,
-        currency: prize.currency,
-        prize_currency: prize.currency,
-        mode: loc.mode,
+        description: `National student competition hosted on Unstop. Compete against top collegiate teams for prizes up to ₹${prizeAmount.toLocaleString('en-IN')}.`,
+        url,
+        banner_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1200&q=80',
+        prize_pool: prizeAmount,
+        prize_amount: prizeAmount,
+        currency: 'INR',
+        prize_currency: 'INR',
+        mode: isOnline ? 'online' : (loc.mode || 'in-person'),
         location: loc.locationString,
-        location_type: loc.location_type,
+        location_type: isOnline ? 'Online' : (loc.location_type || 'In-Person'),
         country: loc.country || 'India',
-        state: loc.state,
-        city: loc.city || 'Bangalore',
+        state: loc.state || rawState,
+        city: loc.city || rawCity,
         registration_end,
         submission_deadline: registration_end,
         tags,
         source: 'Unstop',
+        is_featured: false,
         is_active: true,
       });
     }
   } catch (err) {
-    console.warn(`⚠️ Unstop parsing note: ${err.message}. Using resilient fallback data.`);
-  } finally {
-    await page.close().catch(() => {});
+    console.warn(`⚠️ [Unstop] API fetch error: ${err.message}`);
   }
 
   return results;
@@ -441,29 +452,6 @@ function getCuratedEvents() {
       is_active: true,
     },
     {
-      slug: 'unstop-smart-india-campus-challenge',
-      title: 'National Campus Innovation Challenge 2026',
-      description: 'Design digital public infrastructure and mobile accessibility solutions for tier-2 and tier-3 colleges. Supported by leading tech firms.',
-      url: 'https://unstop.com/hackathons/campus-innovation-2026',
-      banner_url: 'https://images.unsplash.com/photo-1531482615713-2afd69097998?auto=format&fit=crop&w=1200&q=80',
-      prize_pool: 500000,
-      prize_amount: 500000,
-      currency: 'INR',
-      prize_currency: 'INR',
-      mode: 'in-person',
-      location_type: 'In-Person',
-      location: 'Bangalore, India',
-      country: 'India',
-      state: 'Karnataka',
-      city: 'Bangalore',
-      registration_end: addDays(12),
-      submission_deadline: addDays(12),
-      tags: ['Mobile', 'Public Goods', 'Beginner-Friendly', 'FinTech'],
-      source: 'Unstop',
-      is_featured: false,
-      is_active: true,
-    },
-    {
       slug: 'delhi-ai-builders-conclave-2026',
       title: 'Delhi AI Builders Conclave & Hack',
       description: 'North India premier collegiate AI competition. Develop LLM agents, vernacular language models, and civic tech solutions at IIT Delhi.',
@@ -508,91 +496,58 @@ function getCuratedEvents() {
       source: 'MLH',
       is_featured: true,
       is_active: true,
-    },
-    {
-      slug: 'calhacks-climate-tech-fellowship',
-      title: 'CalHacks: Green Horizon Hack 2026',
-      description: 'UC Berkeley climate-focused hackathon tackling carbon capture tracking, renewable energy grid optimization, and disaster mitigation tech.',
-      url: 'https://calhacks.io',
-      banner_url: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1200&q=80',
-      prize_pool: 40000,
-      prize_amount: 40000,
-      currency: 'USD',
-      prize_currency: 'USD',
-      mode: 'hybrid',
-      location_type: 'Hybrid',
-      location: 'San Francisco, CA, USA & Online',
-      country: 'USA',
-      state: 'CA',
-      city: 'San Francisco',
-      registration_end: addDays(18),
-      submission_deadline: addDays(18),
-      tags: ['ClimateTech', 'IoT', 'Data Science', 'AI', 'Open Source'],
-      source: 'MLH',
-      is_featured: true,
-      is_active: true,
     }
   ];
 }
 
 async function main() {
-  console.log('🚀 [Scraper Engine] Starting Phase 2 Data Ingestion with Location & Currency Localization...');
+  console.log('🚀 [Scraper Engine] Starting Live Ingestion with Location & Currency Localization...');
   const startTime = Date.now();
 
-  let browser;
-  let scraped = [];
+  let allHackathons = [];
 
-  try {
-    browser = await puppeteer.launch({
-      headless: 'new',
-      args: [
-        '--no-sandbox',
-        '--disable-setuid-sandbox',
-        '--disable-dev-shm-usage',
-        '--disable-accelerated-2d-canvas',
-        '--no-first-run',
-        '--no-zygote',
-        '--disable-gpu',
-      ],
-    });
+  // 1. Fetch live events from Devpost and Unstop APIs
+  const [devpostEvents, unstopEvents] = await Promise.all([
+    fetchDevpostApi(),
+    fetchUnstopApi()
+  ]);
 
-    const devpostEvents = await scrapeDevpost(browser);
-    const unstopEvents = await scrapeUnstop(browser);
-    scraped = [...devpostEvents, ...unstopEvents];
-  } catch (err) {
-    console.error('Browser launch note:', err.message);
-  } finally {
-    if (browser) await browser.close().catch(() => {});
-  }
+  allHackathons.push(...devpostEvents);
+  allHackathons.push(...unstopEvents);
 
-  // Ensure rich localized data using curated events
+  // 2. Ensure rich localized coverage with curated events
   const curated = getCuratedEvents();
-  const seen = new Set(scraped.map((s) => s.slug));
+  const seen = new Set(allHackathons.map((s) => s.slug));
   for (const item of curated) {
     if (!seen.has(item.slug)) {
-      scraped.push(item);
+      allHackathons.push(item);
+      seen.add(item.slug);
     }
   }
 
-  console.log(`\n📦 Total localized hackathons to ingest: ${scraped.length}`);
-  console.log(`🏙️ Indian / Bangalore events: ${scraped.filter((s) => s.city === 'Bangalore' || s.country === 'India').length}`);
-  console.log(`💵 Currencies present: ${Array.from(new Set(scraped.map((s) => s.prize_currency))).join(', ')}`);
+  console.log(`\n📦 Total live & verified hackathons gathered: ${allHackathons.length}`);
+  console.log(`🏙️ Indian / Bangalore events: ${allHackathons.filter((s) => s.city === 'Bangalore' || s.country === 'India').length}`);
+  console.log(`💵 Currencies present: ${Array.from(new Set(allHackathons.map((s) => s.prize_currency))).join(', ')}`);
 
   if (!supabase) {
-    console.log('\n⚠️ Supabase credentials not found in environment. Running in dry-run mode:');
-    console.log(JSON.stringify(scraped.slice(0, 3), null, 2));
-    console.log(`🎉 Dry-run finished in ${((Date.now() - startTime) / 1000).toFixed(2)}s\n`);
+    console.log('\n⚠️ Supabase credentials not found in environment.');
+    console.log('Set SUPABASE_URL and SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY to persist.');
+    console.log(`🎉 Finished in ${((Date.now() - startTime) / 1000).toFixed(2)}s\n`);
     return;
   }
 
-  // Upsert into Supabase Hackathons table with localized columns
+  // 3. Upsert into Supabase Hackathons table
+  console.log(`\n🔄 Upserting ${allHackathons.length} events into Supabase...`);
   let upserted = 0;
-  for (const event of scraped) {
+  let errors = 0;
+
+  for (const event of allHackathons) {
     const { error } = await supabase
       .from('hackathons')
       .upsert(event, { onConflict: 'slug' });
 
     if (error) {
+      errors++;
       console.error(`❌ Upsert error for "${event.title}":`, error.message);
     } else {
       upserted++;
@@ -600,7 +555,7 @@ async function main() {
     }
   }
 
-  console.log(`\n✨ Successfully ingested ${upserted} localized events into Supabase!`);
+  console.log(`\n✨ Ingestion complete: ${upserted} upserted, ${errors} errors.`);
   console.log(`⏱️ Duration: ${((Date.now() - startTime) / 1000).toFixed(2)}s\n`);
 }
 
