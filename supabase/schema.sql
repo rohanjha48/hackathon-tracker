@@ -139,11 +139,6 @@ BEGIN
         NEW.registration_end = NEW.submission_deadline;
     END IF;
 
-    -- Sync telegram chat id
-    IF NEW.telegram_chat_id IS NULL AND NEW.telegram_id IS NOT NULL THEN
-        NEW.telegram_chat_id = NEW.telegram_id;
-    END IF;
-
     -- Sync mode <-> location_type
     IF NEW.mode IS NOT NULL AND NEW.location_type IS NULL THEN
         NEW.location_type = CASE 

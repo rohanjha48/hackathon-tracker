@@ -124,9 +124,6 @@ BEGIN
     ELSIF NEW.submission_deadline IS NOT NULL AND NEW.registration_end IS NULL THEN
         NEW.registration_end = NEW.submission_deadline;
     END IF;
-    IF NEW.telegram_chat_id IS NULL AND NEW.telegram_id IS NOT NULL THEN
-        NEW.telegram_chat_id = NEW.telegram_id;
-    END IF;
     NEW.updated_at = TIMEZONE('utc'::text, NOW());
     RETURN NEW;
 END;
