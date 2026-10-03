@@ -178,6 +178,7 @@ node scripts/notify.js
 
 ## ☁️ GitHub Actions & Vercel Deployment
 
+Trigger Vercel rebuild
 ### 1. Deploy Frontend to Vercel
 1. Push repository to GitHub.
 2. Import project into [Vercel](https://vercel.com).
